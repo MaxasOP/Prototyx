@@ -1,12 +1,16 @@
 package com.example.prototyx
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavKey
@@ -18,11 +22,11 @@ import com.example.prototyx.data.DefaultDataRepository
 import com.example.prototyx.ui.screens.*
 
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
-    object Dashboard : BottomBarTab(Main, Icons.Default.Home, "Dashboard")
-    object Optimize : BottomBarTab(Optimizer, Icons.Default.Settings, "Optimize")
-    object Risk : BottomBarTab(RiskMesh, Icons.Default.Info, "Risk Mesh")
-    object Debate : BottomBarTab(Committee, Icons.Default.List, "AI Committee")
-    object Transcripts : BottomBarTab(Earnings, Icons.Default.Search, "Earnings")
+    object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Terminal")
+    object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Settings, "Optimize")
+    object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk Mesh")
+    object Debate : BottomBarTab(Committee, Icons.AutoMirrored.Outlined.List, "Committee")
+    object Transcripts : BottomBarTab(Earnings, Icons.Outlined.Search, "Earnings")
 }
 
 @Composable
@@ -30,7 +34,6 @@ fun MainNavigation() {
     val repository = DefaultDataRepository()
     val backStack = rememberNavBackStack(Main)
     
-    // List of bottom tabs
     val tabs = listOf(
         BottomBarTab.Dashboard,
         BottomBarTab.Optimize,
@@ -41,20 +44,41 @@ fun MainNavigation() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 0.dp
+            ) {
                 val currentScreen = backStack.lastOrNull() ?: Main
                 tabs.forEach { tab ->
+                    val isSelected = currentScreen::class == tab.route::class
                     NavigationBarItem(
-                        selected = currentScreen::class == tab.route::class,
+                        selected = isSelected,
                         onClick = {
-                            // Empty backstack and add new route to prevent stack buildup
                             while (backStack.size > 0) {
                                 backStack.removeLastOrNull()
                             }
                             backStack.add(tab.route)
                         },
-                        icon = { Icon(imageVector = tab.icon, contentDescription = tab.title) },
-                        label = { Text(tab.title, fontSize = 10.sp) }
+                        icon = { 
+                            Icon(
+                                imageVector = tab.icon, 
+                                contentDescription = tab.title,
+                                modifier = Modifier.size(20.dp),
+                                tint = if (isSelected) Color.Black else Color.Gray.copy(alpha = 0.5f)
+                            ) 
+                        },
+                        label = { 
+                            Text(
+                                text = tab.title.uppercase(), 
+                                fontSize = 9.sp,
+                                fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
+                                letterSpacing = 0.5.sp,
+                                color = if (isSelected) Color.Black else Color.Gray.copy(alpha = 0.5f)
+                            ) 
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color.Transparent
+                        )
                     )
                 }
             }

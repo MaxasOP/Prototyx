@@ -3,7 +3,6 @@ package com.example.prototyx.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +16,7 @@ import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.data.model.OptimizeResponse
 import com.example.prototyx.theme.PrototyxTheme
+import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
 
 @Composable
@@ -32,191 +32,128 @@ fun OptimizerScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Load mock data if null (for previews and initial state)
+    LaunchedEffect(Unit) {
+        if (optimizationResult == null) {
+            try {
+                optimizationResult = repository.getOptimization(
+                    tickerInput.split(",").map { it.trim() },
+                    mapOf("TCS" to 0.16)
+                )
+            } catch (e: Exception) {
+                // Silently fail for initial load
+            }
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        // Explainer Header
+        // Header
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Black-Litterman Portfolio Optimizer",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Blends historical market covariance (via PyPortfolioOpt) with dynamic views to output robust asset allocations.",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
+            Column {
+                EditorialHeading(text = "Black-Litterman Strategic Optimization")
+                Spacer(modifier = Modifier.height(8.dp))
+                MetadataLabel(text = "Advanced Bayesian Portfolio Balancing")
             }
         }
 
-        // Inputs Card
+        // Configuration
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = tickerInput,
-                        onValueChange = { tickerInput = it },
-                        label = { Text("Asset Tickers (comma separated)") },
-                        modifier = Modifier.fillMaxWidth()
+            DoubleBezelCard {
+                MetadataLabel(text = "Optimization Parameters")
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                OutlinedTextField(
+                    value = tickerInput,
+                    onValueChange = { tickerInput = it },
+                    label = { Text("Asset Universe", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Black,
+                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
                     )
+                )
 
-                    OutlinedTextField(
-                        value = viewsInput,
-                        onValueChange = { viewsInput = it },
-                        label = { Text("Subjective Views (e.g. TCS=0.15, AAPL=0.18)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        supportingText = { Text("Implied annual return forecasts from analysts") }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = viewsInput,
+                    onValueChange = { viewsInput = it },
+                    label = { Text("Subjective Return Views", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Black,
+                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
                     )
+                )
 
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                isLoading = true
-                                errorMessage = null
-                                optimizationResult = null
-                                try {
-                                    val tickers = tickerInput.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
-                                    
-                                    // Parse views mapping
-                                    val views = mutableMapOf<String, Double>()
-                                    if (viewsInput.isNotEmpty()) {
-                                        viewsInput.split(",").forEach { item ->
-                                            val parts = item.split("=")
-                                            if (parts.size == 2) {
-                                                val ticker = parts[0].trim().uppercase()
-                                                val valStr = parts[1].trim()
-                                                val value = valStr.toDoubleOrNull()
-                                                if (value != null) {
-                                                    views[ticker] = value
-                                                }
-                                            }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                PrimaryButton(
+                    text = "Solve Strategic Weights",
+                    onClick = {
+                        coroutineScope.launch {
+                            isLoading = true
+                            errorMessage = null
+                            optimizationResult = null
+                            try {
+                                val tickers = tickerInput.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
+                                val views = mutableMapOf<String, Double>()
+                                if (viewsInput.isNotEmpty()) {
+                                    viewsInput.split(",").forEach { item ->
+                                        val parts = item.split("=")
+                                        if (parts.size == 2) {
+                                            val ticker = parts[0].trim().uppercase()
+                                            val value = parts[1].trim().toDoubleOrNull()
+                                            if (value != null) views[ticker] = value
                                         }
                                     }
-
-                                    optimizationResult = repository.getOptimization(tickers, if (views.isNotEmpty()) views else null)
-                                } catch (e: Exception) {
-                                    errorMessage = "Optimization failed. Check if local Python server is running."
-                                } finally {
-                                    isLoading = false
                                 }
+                                optimizationResult = repository.getOptimization(tickers, if (views.isNotEmpty()) views else null)
+                            } catch (e: Exception) {
+                                errorMessage = "Solver engine unreachable. Verify Python backend."
+                            } finally {
+                                isLoading = false
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                        } else {
-                            Text("Solve Black-Litterman Weights")
                         }
-                    }
-                }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    isLoading = isLoading
+                )
             }
         }
 
-        // Error message if any
         errorMessage?.let { error ->
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
-                ) {
-                    Text(
-                        text = error,
-                        color = Color.Red,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                Text(text = error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
         }
 
-        // Optimization output results
+        // Results
         optimizationResult?.let { res ->
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Model Outputs (Solver: ${res.method})",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                DoubleBezelCard {
+                    MetadataLabel(text = "Engine Output: ${res.method}")
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        BentoMetric(label = "Expected Return", value = "${String.format("%.2f", res.expectedAnnualReturn * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Volatility Risk", value = "${String.format("%.2f", res.annualVolatility * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Sharpe Ratio", value = String.format("%.2f", res.sharpeRatio), modifier = Modifier.weight(1f))
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                    MetadataLabel(text = "Target Allocations")
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    res.weights.forEach { (ticker, weight) ->
+                        AllocationRow(ticker, weight)
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Expected Return", fontSize = 11.sp, color = Color.Gray)
-                                Text("${String.format("%.2f", res.expectedAnnualReturn * 100)}%", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Column {
-                                Text("Volatility Risk", fontSize = 11.sp, color = Color.Gray)
-                                Text("${String.format("%.2f", res.annualVolatility * 100)}%", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Column {
-                                Text("Sharpe Ratio", fontSize = 11.sp, color = Color.Gray)
-                                Text(String.format("%.2f", res.sharpeRatio), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(text = "Optimal Allocations:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        res.weights.forEach { (ticker, weight) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.bind()),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = ticker, fontWeight = FontWeight.SemiBold)
-                                Text(text = "${String.format("%.2f", weight * 100)}%", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                            // Custom horizontal bar to visualize weight
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .background(Color.LightGray, shape = RoundedCornerShape(4.dp))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(weight.toFloat().coerceIn(0f, 1f))
-                                        .fillMaxHeight()
-                                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(4.dp))
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
                     }
                 }
             }
@@ -224,8 +161,32 @@ fun OptimizerScreen(
     }
 }
 
-// Simple extension helper for Int padding.dp binding
-private fun Int.bind() = this.dp
+@Composable
+fun AllocationRow(ticker: String, weight: Double) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = ticker, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(text = "${String.format("%.2f", weight * 100)}%", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .background(Color.Black.copy(alpha = 0.05f), shape = androidx.compose.foundation.shape.CircleShape)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(weight.toFloat().coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .background(Color.Black, shape = androidx.compose.foundation.shape.CircleShape)
+            )
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable

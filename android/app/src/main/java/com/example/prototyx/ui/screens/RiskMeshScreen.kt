@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +18,7 @@ import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.theme.PrototyxTheme
 import com.example.prototyx.data.model.RiskMeshResponse
+import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
 
 @Composable
@@ -34,200 +33,120 @@ fun RiskMeshScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(Unit) {
+        if (riskMeshResult == null) {
+            try {
+                riskMeshResult = repository.getRiskMesh(listOf("TCS", "RELIANCE", "AAPL", "INFY"), listOf(0.3, 0.4, 0.2, 0.1))
+            } catch (e: Exception) {}
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        // Header
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Cross-Asset Correlation Mesh",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Calculates asset-to-asset correlations & portfolio net exposure index to catch hidden portfolio overlaps.",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
+            Column {
+                EditorialHeading(text = "Cross-Asset Risk Mesh")
+                Spacer(modifier = Modifier.height(8.dp))
+                MetadataLabel(text = "Systemic Exposure & Correlation Analysis")
             }
         }
 
-        // Configuration Card
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedTextField(
-                        value = inputHoldings,
-                        onValueChange = { inputHoldings = it },
-                        label = { Text("Portfolio Holdings (e.g. TCS=0.30, AAPL=0.20)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        supportingText = { Text("Specify tickers and decimal weights summing to 1") }
+            DoubleBezelCard {
+                MetadataLabel(text = "Asset Configuration")
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                OutlinedTextField(
+                    value = inputHoldings,
+                    onValueChange = { inputHoldings = it },
+                    label = { Text("Current Positions", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Black,
+                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
                     )
+                )
 
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                isLoading = true
-                                errorMessage = null
-                                riskMeshResult = null
-                                try {
-                                    val tickers = mutableListOf<String>()
-                                    val weights = mutableListOf<Double>()
-                                    
-                                    inputHoldings.split(",").forEach { item ->
-                                        val parts = item.split("=")
-                                        if (parts.size == 2) {
-                                            val t = parts[0].trim().uppercase()
-                                            val w = parts[1].trim().toDoubleOrNull()
-                                            if (w != null && t.isNotEmpty()) {
-                                                tickers.add(t)
-                                                weights.add(w)
-                                            }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                PrimaryButton(
+                    text = "Analyze Risk Mesh",
+                    onClick = {
+                        coroutineScope.launch {
+                            isLoading = true
+                            errorMessage = null
+                            riskMeshResult = null
+                            try {
+                                val tickers = mutableListOf<String>()
+                                val weights = mutableListOf<Double>()
+                                inputHoldings.split(",").forEach { item ->
+                                    val parts = item.split("=")
+                                    if (parts.size == 2) {
+                                        val t = parts[0].trim().uppercase()
+                                        val w = parts[1].trim().toDoubleOrNull()
+                                        if (w != null && t.isNotEmpty()) {
+                                            tickers.add(t)
+                                            weights.add(w)
                                         }
                                     }
-
-                                    riskMeshResult = repository.getRiskMesh(tickers, weights)
-                                } catch (e: Exception) {
-                                    errorMessage = "Failed to calculate correlation mesh. Verify backend connectivity."
-                                } finally {
-                                    isLoading = false
                                 }
+                                riskMeshResult = repository.getRiskMesh(tickers, weights)
+                            } catch (e: Exception) {
+                                errorMessage = "Risk engine connection failure."
+                            } finally {
+                                isLoading = false
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                        } else {
-                            Text("Compute Risk & Correlation Mesh")
                         }
-                    }
-                }
-            }
-        }
-
-        errorMessage?.let { error ->
-            item {
-                Card(
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
-                ) {
-                    Text(
-                        text = error,
-                        color = Color.Red,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                    isLoading = isLoading
+                )
             }
         }
 
         riskMeshResult?.let { res ->
-            // Net Exposure & Beta Summary Card
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Net Exposure Index", fontSize = 11.sp, color = Color.Gray)
-                            Text("${res.netExposureIndex}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = getNEIColor(res.netExposureIndex))
-                            Text(getNEIDesc(res.netExposureIndex), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                DoubleBezelCard {
+                    MetadataLabel(text = "Exposure Summary")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            MetadataLabel(text = "Net Exposure Index")
+                            Text(text = "${res.netExposureIndex}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(getNEIDesc(res.netExposureIndex), fontSize = 10.sp, color = getNEIColor(res.netExposureIndex), fontWeight = FontWeight.Bold)
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Portfolio Beta (v/s Nifty)", fontSize = 11.sp, color = Color.Gray)
-                            Text("${res.portfolioBeta}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            Text(getBetaDesc(res.portfolioBeta), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                        Column(modifier = Modifier.weight(1f)) {
+                            MetadataLabel(text = "Portfolio Beta")
+                            Text(text = "${res.portfolioBeta}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(getBetaDesc(res.portfolioBeta), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
-            // Correlation Matrix Grid
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Cross-Asset Heatmap Matrix",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        CorrelationHeatmap(res.tickers, res.correlationMatrix)
-                    }
+                DoubleBezelCard {
+                    MetadataLabel(text = "Asset Correlation Heatmap")
+                    Spacer(modifier = Modifier.height(24.dp))
+                    CorrelationHeatmap(res.tickers, res.correlationMatrix)
                 }
             }
 
-            // Warning Alerts List
             if (res.redundantExposures.isNotEmpty()) {
                 item {
-                    Text(text = "Exposures Warnings", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                items(res.redundantExposures) { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = item.warning,
-                            fontSize = 13.sp,
-                            color = Color(0xFFE65100),
-                            modifier = Modifier.padding(12.dp),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            // Hedging list
-            if (res.hedgedPositions.isNotEmpty()) {
-                item {
-                    Text(text = "Hedged Buffers", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                items(res.hedgedPositions) { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = item.details,
-                            fontSize = 13.sp,
-                            color = Color(0xFF1B5E20),
-                            modifier = Modifier.padding(12.dp),
-                            fontWeight = FontWeight.Medium
-                        )
+                    Column {
+                        MetadataLabel(text = "Concentration Alerts")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        res.redundantExposures.forEach { alert ->
+                            RiskWarningCard(alert.warning, Color(0xFF9F2F2D), Color(0xFFFDEBEC))
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
             }
@@ -235,51 +154,38 @@ fun RiskMeshScreen(
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun RiskMeshScreenPreview() {
-    PrototyxTheme {
-        RiskMeshScreen(repository = MockDataRepository())
+fun RiskWarningCard(text: String, textColor: Color, bgColor: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(bgColor, shape = RoundedCornerShape(8.dp))
+            .padding(16.dp)
+    ) {
+        Text(text = text, color = textColor, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 fun CorrelationHeatmap(tickers: List<String>, matrix: Map<String, Map<String, Double>>) {
     Column {
-        // Ticker column headers
         Row(modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.weight(1f)) // Empty top-left cell
+            Box(modifier = Modifier.weight(1f))
             tickers.forEach { ticker ->
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(ticker, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(ticker, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
+        Spacer(modifier = Modifier.height(8.dp))
         tickers.forEach { rowTicker ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Row header
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text(rowTicker, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    Text(rowTicker, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
-                
                 tickers.forEach { colTicker ->
                     val corr = matrix[rowTicker]?.get(colTicker) ?: 1.0
                     val cellColor = getHeatmapColor(corr)
-                    
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -290,9 +196,9 @@ fun CorrelationHeatmap(tickers: List<String>, matrix: Map<String, Map<String, Do
                     ) {
                         Text(
                             text = String.format("%.2f", corr),
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (corr > 0.6 || corr < -0.2) Color.White else Color.Black
+                            color = if (corr.let { it > 0.6 || it < -0.2 }) Color.White else Color.Black
                         )
                     }
                 }
@@ -301,37 +207,25 @@ fun CorrelationHeatmap(tickers: List<String>, matrix: Map<String, Map<String, Do
     }
 }
 
-private fun getHeatmapColor(valStr: Double): Color {
+private fun getHeatmapColor(corr: Double): Color {
     return when {
-        valStr >= 0.8 -> Color(0xFF1E88E5) // deep blue - high positive correlation
-        valStr >= 0.5 -> Color(0xFF64B5F6) // light blue
-        valStr >= 0.2 -> Color(0xFFBBDEFB) // pale blue
-        valStr <= -0.5 -> Color(0xFFE53935) // deep red - high negative correlation
-        valStr <= -0.1 -> Color(0xFFEF9A9A) // light red
-        else -> Color(0xFFEEEEEE) // grey - uncorrelated
+        corr >= 0.8 -> Color(0xFF111111)
+        corr >= 0.5 -> Color(0xFF787774)
+        corr >= 0.2 -> Color(0xFFEAEAEA)
+        corr <= -0.5 -> Color(0xFF9F2F2D)
+        corr <= -0.1 -> Color(0xFFFDEBEC)
+        else -> Color(0xFFFBFBFA)
     }
 }
 
-private fun getNEIColor(nei: Double): Color {
-    return when {
-        nei > 0.6 -> Color(0xFFE53935) // high concentration - red
-        nei > 0.3 -> Color(0xFFFF9800) // moderate - orange
-        else -> Color(0xFF4CAF50) // diversified - green
-    }
-}
+private fun getNEIColor(nei: Double): Color = if (nei > 0.5) Color(0xFF9F2F2D) else Color(0xFF346538)
+private fun getNEIDesc(nei: Double): String = if (nei > 0.5) "CONCENTRATED RISK" else "OPTIMALLY DIVERSIFIED"
+private fun getBetaDesc(beta: Double): String = if (beta > 1.2) "HIGH VOLATILITY" else "MARKET NEUTRAL"
 
-private fun getNEIDesc(nei: Double): String {
-    return when {
-        nei > 0.6 -> "High Overlap Risk"
-        nei > 0.3 -> "Moderate Risk"
-        else -> "Diversified Basket"
-    }
-}
-
-private fun getBetaDesc(beta: Double): String {
-    return when {
-        beta > 1.2 -> "High Volatility"
-        beta < 0.8 -> "Defensive Basket"
-        else -> "Market Neutral"
+@Preview(showBackground = true)
+@Composable
+fun RiskMeshScreenPreview() {
+    PrototyxTheme {
+        RiskMeshScreen(repository = MockDataRepository())
     }
 }
