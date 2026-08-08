@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+yfinance
+PyPortfolioOpt
+earningscall
+crewai
+pandas
+numpy
+nltk
+scikit-learn
+pydantic
+requests
+financedatabase
