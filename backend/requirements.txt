@@ -11,3 +11,5 @@ scikit-learn
 pydantic
 requests
 financedatabase
+python-dotenv
+langchain-openai

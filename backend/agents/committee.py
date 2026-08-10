@@ -47,7 +47,11 @@ def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
     Orchestrates the Investment Committee debate using CrewAI if API keys are set.
     Otherwise, falls back to a high-fidelity simulated debate tailored to the tickers.
     """
-    api_key_set = os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    api_key_set = (
+        os.environ.get("GEMINI_API_KEY") or
+        os.environ.get("OPENAI_API_KEY") or
+        os.environ.get("XAI_API_KEY")
+    )
     
     # Clean tickers list
     tickers_clean = [t.upper().replace(".NS", "") for t in tickers]
@@ -77,8 +81,20 @@ def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
         
     try:
         from crewai import Agent, Crew, Task, Process
-        # We can dynamically configure the LLM based on what API key is available
-        llm = "gemini/gemini-1.5-flash" if os.environ.get("GEMINI_API_KEY") else "openai/gpt-4-turbo"
+
+        # Configure the LLM
+        if os.environ.get("XAI_API_KEY"):
+            # Grok is OpenAI compatible
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(
+                model="grok-beta",
+                openai_api_key=os.environ.get("XAI_API_KEY"),
+                openai_api_base="https://api.x.ai/v1"
+            )
+        elif os.environ.get("GEMINI_API_KEY"):
+            llm = "gemini/gemini-1.5-flash"
+        else:
+            llm = "openai/gpt-4-turbo"
         
         # 1. Define Agents
         macro_analyst = Agent(
