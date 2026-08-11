@@ -9,12 +9,31 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-# Import modular quant/data scripts
-from data.market_data import get_latest_metrics
-from data.earnings import get_earnings_transcript
-from quant.risk_mesh import calculate_exposure_mesh
-from quant.optimizer import optimize_portfolio_black_litterman, optimize_portfolio_mvo
-from agents.committee import run_committee_debate
+# --- Lazy/Conditional Imports for Quant/AI modules ---
+# These modules might fail to import if dependencies (like PyPortfolioOpt or CrewAI)
+# fail to install on newer Python versions (e.g., 3.14).
+
+def get_indicators_safe(ticker: str):
+    from data.market_data import get_latest_metrics
+    return get_latest_metrics(ticker)
+
+def get_transcript_safe(ticker: str, year: int, quarter: int):
+    from data.earnings import get_earnings_transcript
+    return get_earnings_transcript(ticker, year, quarter)
+
+def calculate_exposure_mesh_safe(tickers: List[str], weights: List[float]):
+    from quant.risk_mesh import calculate_exposure_mesh
+    return calculate_exposure_mesh(tickers, weights)
+
+def optimize_portfolio_safe(tickers: List[str], views: Optional[Dict[str, float]]):
+    from quant.optimizer import optimize_portfolio_black_litterman, optimize_portfolio_mvo
+    if views:
+        return optimize_portfolio_black_litterman(tickers, views)
+    return optimize_portfolio_mvo(tickers)
+
+def run_debate_safe(tickers: List[str]):
+    from agents.committee import run_committee_debate
+    return run_committee_debate(tickers)
 
 app = FastAPI(
     title="Prototyx AI Wealth Backend",
@@ -89,7 +108,7 @@ def get_indicators(ticker: str):
     """
     Fetch technical indicators for a ticker.
     """
-    metrics = get_latest_metrics(ticker)
+    metrics = get_indicators_safe(ticker)
     if "error" in metrics:
         raise HTTPException(status_code=404, detail=metrics["error"])
     return metrics
@@ -99,7 +118,7 @@ def get_transcript(ticker: str, year: int = 2026, quarter: int = 3):
     """
     Fetch corporate earnings transcripts.
     """
-    transcript = get_earnings_transcript(ticker, year, quarter)
+    transcript = get_transcript_safe(ticker, year, quarter)
     return transcript
 
 @app.post("/api/quant/risk-mesh")
@@ -107,7 +126,7 @@ def get_risk_mesh(request: RiskMeshRequest):
     """
     Calculate cross-asset correlations and net exposures.
     """
-    mesh = calculate_exposure_mesh(request.tickers, request.weights)
+    mesh = calculate_exposure_mesh_safe(request.tickers, request.weights)
     if "error" in mesh:
         raise HTTPException(status_code=400, detail=mesh["error"])
     return mesh
@@ -117,13 +136,7 @@ def get_optimization(request: OptimizeRequest):
     """
     Calculate portfolio optimization weights.
     """
-    if request.views:
-        # Use Black-Litterman if views are provided
-        result = optimize_portfolio_black_litterman(request.tickers, request.views)
-    else:
-        # Use standard MVO if no views
-        result = optimize_portfolio_mvo(request.tickers)
-        
+    result = optimize_portfolio_safe(request.tickers, request.views)
     return result
 
 @app.post("/api/agents/debate")
@@ -131,7 +144,7 @@ def run_debate(request: TickerListRequest):
     """
     Orchestrates the Investment Committee debate and returns implied return views.
     """
-    debate_result = run_committee_debate(request.tickers)
+    debate_result = run_debate_safe(request.tickers)
     return debate_result
 
 if __name__ == "__main__":

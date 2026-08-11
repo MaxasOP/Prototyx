@@ -64,16 +64,16 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
     Retrieves the latest technical indicators for a given ticker.
     Falls back to high-quality random/realistic mock metrics if libs are missing.
     """
-    ticker_clean = ticker.upper().replace(".NS", "").replace(".BO", "")
+    ticker_up = ticker.upper().strip().replace(".NS", "").replace(".BO", "")
     
     if not HAS_LIBS:
         # Fallback to realistic mock metrics for demo
-        random.seed(hash(ticker_clean))
-        base_price = 3000.0 if ticker_clean == "TCS" else (2400.0 if ticker_clean == "RELIANCE" else (180.0 if ticker_clean == "AAPL" else 1500.0))
+        random.seed(hash(ticker_up))
+        base_price = 3000.0 if ticker_up == "TCS" else (2400.0 if ticker_up == "RELIANCE" else (180.0 if ticker_up == "AAPL" else 1500.0))
         price = base_price + random.uniform(-100, 100)
         
         return {
-            "ticker": ticker_clean,
+            "ticker": ticker_up,
             "close": round(price, 2),
             "sma_50": round(price * 0.98, 2),
             "sma_200": round(price * 0.94, 2),
@@ -92,11 +92,13 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
         }
 
     try:
-        # Standardize ticker names
-        if not ticker.endswith((".NS", ".BO")) and len(ticker) <= 6:
-            ticker_yf = f"{ticker}.NS"
+        # Standardize ticker names: Only add .NS for Indian stocks (not known global ones)
+        if ticker_up in ["AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "META", "NVDA"]:
+            ticker_yf = ticker_up
+        elif len(ticker_up) <= 6:
+            ticker_yf = f"{ticker_up}.NS"
         else:
-            ticker_yf = ticker
+            ticker_yf = ticker_up
 
         df = get_stock_data(ticker_yf, period="1y")
         if df is None or df.empty:
@@ -113,24 +115,35 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
         fifty_two_week_low = ticker_info.get("fiftyTwoWeekLow", None)
         dividend_yield = ticker_info.get("dividendYield", 0)
 
+        # Final JSON-ready response sanitization
+        def sanitize_val(v):
+            if isinstance(v, float) and (pd.isna(v) or np.isinf(v)):
+                return 0.0
+            return v
+
         return {
-            "ticker": ticker,
-            "close": float(latest["Close"]),
-            "sma_50": float(latest["SMA_50"]) if not pd.isna(latest["SMA_50"]) else None,
-            "sma_200": float(latest["SMA_200"]) if not pd.isna(latest["SMA_200"]) else None,
-            "rsi": float(latest["RSI"]) if not pd.isna(latest["RSI"]) else None,
-            "macd": float(latest["MACD"]) if not pd.isna(latest["MACD"]) else None,
-            "macd_signal": float(latest["MACD_Signal"]) if not pd.isna(latest["MACD_Signal"]) else None,
-            "macd_hist": float(latest["MACD_Hist"]) if not pd.isna(latest["MACD_Hist"]) else None,
-            "bb_upper": float(latest["BB_Upper"]) if not pd.isna(latest["BB_Upper"]) else None,
-            "bb_middle": float(latest["BB_Middle"]) if not pd.isna(latest["BB_Middle"]) else None,
-            "bb_lower": float(latest["BB_Lower"]) if not pd.isna(latest["BB_Lower"]) else None,
-            "pe_ratio": pe_ratio,
-            "market_cap": market_cap,
-            "52_week_high": fifty_two_week_high,
-            "52_week_low": fifty_two_week_low,
-            "dividend_yield": float(dividend_yield) if dividend_yield else 0.0
+            "ticker": ticker_up,
+            "close": float(sanitize_val(latest["Close"])),
+            "sma_50": float(sanitize_val(latest["SMA_50"])),
+            "sma_200": float(sanitize_val(latest["SMA_200"])),
+            "rsi": float(sanitize_val(latest["RSI"])),
+            "macd": float(sanitize_val(latest["MACD"])),
+            "macd_signal": float(sanitize_val(latest["MACD_Signal"])),
+            "macd_hist": float(sanitize_val(latest["MACD_Hist"])),
+            "bb_upper": float(sanitize_val(latest["BB_Upper"])),
+            "bb_middle": float(sanitize_val(latest["BB_Middle"])),
+            "bb_lower": float(sanitize_val(latest["BB_Lower"])),
+            "pe_ratio": sanitize_val(pe_ratio),
+            "market_cap": sanitize_val(market_cap),
+            "52_week_high": sanitize_val(fifty_two_week_high),
+            "52_week_low": sanitize_val(fifty_two_week_low),
+            "dividend_yield": float(sanitize_val(dividend_yield))
         }
     except Exception as e:
-        # Fallback if yfinance throws error (e.g. offline)
-        return get_latest_metrics(ticker)
+        print(f"ERROR in market_data for {ticker}: {str(e)}")
+        # Fallback to hardcoded mock if yfinance fails
+        return {
+            "ticker": ticker_up,
+            "close": 0.0,
+            "error": str(e)
+        }

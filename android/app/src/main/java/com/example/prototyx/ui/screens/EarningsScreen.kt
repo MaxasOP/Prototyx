@@ -3,6 +3,7 @@ package com.example.prototyx.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,9 +34,13 @@ fun EarningsScreen(
 
     LaunchedEffect(Unit) {
         if (transcriptResult == null) {
+            isLoading = true
             try {
+                kotlinx.coroutines.delay(500)
                 transcriptResult = repository.getTranscript("TCS")
-            } catch (e: Exception) {}
+            } catch (e: Exception) {} finally {
+                isLoading = false
+            }
         }
     }
 
@@ -103,7 +108,13 @@ fun EarningsScreen(
                         MetadataLabel(text = "(${res.ticker})")
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    MetadataLabel(text = "Period: ${res.quarter}")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MetadataLabel(text = "Period: ${res.quarter}")
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(modifier = Modifier.size(6.dp).background(Color(0xFF1F6C9F), RoundedCornerShape(3.dp)))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        MetadataLabel(text = "AI PARSED", color = Color(0xFF1F6C9F))
+                    }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))

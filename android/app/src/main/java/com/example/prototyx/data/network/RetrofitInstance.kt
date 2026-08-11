@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    // 10.0.2.2 is the special IP that allows Android emulators to communicate with the host machine's localhost
+    // 10.0.2.2 is the special IP for Android emulators to talk to the computer's localhost
     private var baseUrl = "http://10.0.2.2:8000/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {

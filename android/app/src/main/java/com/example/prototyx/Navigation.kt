@@ -18,7 +18,9 @@ import com.example.prototyx.theme.PrototyxTheme
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.DefaultDataRepository
+import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.ui.screens.*
 
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
@@ -30,8 +32,7 @@ sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: S
 }
 
 @Composable
-fun MainNavigation() {
-    val repository = DefaultDataRepository()
+fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
     val backStack = rememberNavBackStack(Main)
     
     val tabs = listOf(
@@ -112,6 +113,6 @@ fun MainNavigation() {
 @Composable
 fun MainNavigationPreview() {
     PrototyxTheme {
-        MainNavigation()
+        MainNavigation(repository = MockDataRepository())
     }
 }

@@ -70,66 +70,91 @@ def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[st
         }
 
     try:
+        # Improved ticker cleaning logic
         cleaned_tickers = []
         for t in tickers:
-            if not t.endswith((".NS", ".BO")) and len(t) <= 6:
-                cleaned_tickers.append(f"{t}.NS")
+            t_up = t.upper().strip()
+            # If it already has an extension or is a known US ticker
+            if t_up.endswith((".NS", ".BO")) or t_up in ["AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "META", "NVDA"]:
+                cleaned_tickers.append(t_up)
+            # Default to NSE (.NS) for standard Indian tickers if no extension provided
+            elif len(t_up) <= 6:
+                cleaned_tickers.append(f"{t_up}.NS")
             else:
-                cleaned_tickers.append(t)
+                cleaned_tickers.append(t_up)
                 
         benchmark = "^NSEI"
-        all_tickers = cleaned_tickers + [benchmark]
+        all_tickers = list(set(cleaned_tickers + [benchmark]))
         
+        print(f"DEBUG: Downloading data for {all_tickers}...")
         data = yf.download(all_tickers, period="90d", progress=False)["Close"]
+
+        # Handle single ticker return (yf returns Series instead of DF)
+        if isinstance(data, pd.Series):
+            data = data.to_frame()
+
         data = data.ffill().bfill()
         
+        if data.empty:
+            raise Exception("No market data returned from Yahoo Finance.")
+
         returns = np.log(data / data.shift(1)).dropna()
         
-        ticker_mapping = {cleaned_tickers[i]: tickers[i] for i in range(len(tickers))}
-        ticker_mapping[benchmark] = "BENCHMARK"
+        # Ticker mapping for dictionary keys
+        ticker_mapping = {benchmark: "BENCHMARK"}
+        for i, original in enumerate(tickers):
+            ticker_mapping[cleaned_tickers[i]] = original
+
         returns = returns.rename(columns=ticker_mapping)
         
         stock_cols = [t for t in tickers if t in returns.columns]
-        if len(stock_cols) < 2:
-            raise Exception("Insufficient data for correlation calculations.")
+        if not stock_cols:
+            raise Exception(f"None of the tickers {tickers} were found in the downloaded data.")
             
         corr_matrix = returns[stock_cols].corr()
-        corr_dict = corr_matrix.to_dict()
+        # Convert to dictionary and sanitize NaN values for JSON compatibility
+        corr_dict = corr_matrix.replace([np.inf, -np.inf], np.nan).fillna(1.0).to_dict()
         
         redundant = []
-        for i in range(len(stock_cols)):
-            for j in range(i+1, len(stock_cols)):
-                t1 = stock_cols[i]
-                t2 = stock_cols[j]
-                val = corr_matrix.loc[t1, t2]
-                if val > 0.70:
-                    redundant.append({
-                        "ticker_1": t1,
-                        "ticker_2": t2,
-                        "correlation": round(val, 2),
-                        "warning": f"Concentrated risk overlap: {t1} and {t2} have high correlation ({round(val, 2)}). Diversification is low."
-                    })
+        if len(stock_cols) >= 2:
+            for i in range(len(stock_cols)):
+                for j in range(i+1, len(stock_cols)):
+                    t1 = stock_cols[i]
+                    t2 = stock_cols[j]
+                    val = corr_matrix.loc[t1, t2]
+                    if not pd.isna(val) and val > 0.70:
+                        redundant.append({
+                            "ticker_1": t1,
+                            "ticker_2": t2,
+                            "correlation": round(float(val), 2),
+                            "warning": f"Concentrated risk overlap: {t1} and {t2} have high correlation ({round(float(val), 2)}). Diversification is low."
+                        })
                     
         hedges = []
-        for i in range(len(stock_cols)):
-            for j in range(i+1, len(stock_cols)):
-                t1 = stock_cols[i]
-                t2 = stock_cols[j]
-                val = corr_matrix.loc[t1, t2]
-                if val < -0.30:
-                    hedges.append({
-                        "ticker_1": t1,
-                        "ticker_2": t2,
-                        "correlation": round(val, 2),
-                        "details": f"Hedged buffer: {t1} and {t2} are negatively correlated ({round(val, 2)}), offsetting risk."
-                    })
+        if len(stock_cols) >= 2:
+            for i in range(len(stock_cols)):
+                for j in range(i+1, len(stock_cols)):
+                    t1 = stock_cols[i]
+                    t2 = stock_cols[j]
+                    val = corr_matrix.loc[t1, t2]
+                    if not pd.isna(val) and val < -0.30:
+                        hedges.append({
+                            "ticker_1": t1,
+                            "ticker_2": t2,
+                            "correlation": round(float(val), 2),
+                            "details": f"Hedged buffer: {t1} and {t2} are negatively correlated ({round(float(val), 2)}), offsetting risk."
+                        })
                     
+        # Calculate Net Exposure Index
         w_arr = np.array(normalized_weights)
-        idx_mapping = [tickers.index(c) for c in stock_cols]
+        idx_mapping = [tickers.index(c) for c in stock_cols if c in tickers]
         w_sub = np.array([w_arr[i] for i in idx_mapping])
-        w_sub = w_sub / sum(w_sub)
+        if sum(w_sub) > 0:
+            w_sub = w_sub / sum(w_sub)
         
         nei_corr = corr_matrix.values
+        # Ensure we don't have NaNs in the math
+        nei_corr = np.nan_to_num(nei_corr, nan=1.0)
         net_exposure_val = np.dot(w_sub.T, np.dot(nei_corr, w_sub))
         
         betas = {}
@@ -137,25 +162,37 @@ def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[st
         if "BENCHMARK" in returns.columns:
             bench_var = returns["BENCHMARK"].var()
             for col in stock_cols:
-                cov = returns[col].cov(returns["BENCHMARK"])
-                beta = cov / bench_var if bench_var != 0 else 1.0
-                betas[col] = round(beta, 2)
-            portfolio_beta = sum(w_sub[i] * betas.get(stock_cols[i], 1.0) for i in range(len(stock_cols)))
+                if bench_var > 0:
+                    cov = returns[col].cov(returns["BENCHMARK"])
+                    beta = cov / bench_var
+                    betas[col] = round(float(beta), 2)
+                else:
+                    betas[col] = 1.0
+
+            # Weighted portfolio beta
+            total_b = 0.0
+            for i, col in enumerate(stock_cols):
+                total_b += w_sub[i] * betas.get(col, 1.0)
+            portfolio_beta = total_b
             
+        # Final JSON-ready response sanitization
+        def sanitize_val(v):
+            if isinstance(v, float) and (pd.isna(v) or np.isinf(v)):
+                return 0.0
+            return v
+
         return {
             "tickers": stock_cols,
-            "weights": [round(float(w), 3) for w in w_sub],
+            "weights": [round(float(sanitize_val(w)), 3) for w in w_sub],
             "correlation_matrix": corr_dict,
             "redundant_exposures": redundant,
             "hedged_positions": hedges,
-            "net_exposure_index": round(float(net_exposure_val), 3),
-            "betas": betas,
-            "portfolio_beta": round(float(portfolio_beta), 2)
+            "net_exposure_index": round(float(sanitize_val(net_exposure_val)), 3),
+            "betas": {k: sanitize_val(v) for k, v in betas.items()},
+            "portfolio_beta": round(float(sanitize_val(portfolio_beta)), 2)
         }
     except Exception as e:
-        # Fallback to mock on exceptions (like network failures)
-        # Create offline fallback
-        corr_matrix = {t1: {t2: 1.0 if t1 == t2 else 0.15 for t2 in tickers} for t1 in tickers}
+        print(f"ERROR in Risk Mesh calculation: {str(e)}")        corr_matrix = {t1: {t2: 1.0 if t1 == t2 else 0.15 for t2 in tickers} for t1 in tickers}
         return {
             "tickers": tickers,
             "weights": [round(w, 3) for w in normalized_weights],

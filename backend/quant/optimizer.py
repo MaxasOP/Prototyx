@@ -36,12 +36,29 @@ def optimize_portfolio_mvo(tickers: List[str], target: str = "max_sharpe") -> Di
         }
 
     try:
-        # Fetch data
-        cleaned_tickers = [f"{t}.NS" if not t.endswith((".NS", ".BO")) and len(t) <= 6 else t for t in tickers]
-        data = yf.download(cleaned_tickers, period="2y", progress=False)["Close"].ffill().bfill()
+        # Improved ticker cleaning logic
+        cleaned_tickers = []
+        for t in tickers:
+            t_up = t.upper().strip()
+            if t_up.endswith((".NS", ".BO")) or t_up in ["AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "META", "NVDA"]:
+                cleaned_tickers.append(t_up)
+            elif len(t_up) <= 6:
+                cleaned_tickers.append(f"{t_up}.NS")
+            else:
+                cleaned_tickers.append(t_up)
+
+        data = yf.download(cleaned_tickers, period="2y", progress=False)["Close"]
+
+        if isinstance(data, pd.Series):
+            data = data.to_frame()
+
+        data = data.ffill().bfill()
         
         # Map columns back
-        ticker_mapping = {cleaned_tickers[i]: tickers[i] for i in range(len(tickers))}
+        ticker_mapping = {}
+        for i, original in enumerate(tickers):
+            ticker_mapping[cleaned_tickers[i]] = original
+
         data = data.rename(columns=ticker_mapping)
         
         mu = expected_returns.capm_return(data)
@@ -57,14 +74,21 @@ def optimize_portfolio_mvo(tickers: List[str], target: str = "max_sharpe") -> Di
         cleaned_weights = ef.clean_weights()
         performance = ef.portfolio_performance(verbose=False)
         
+        # Final JSON-ready response sanitization
+        def sanitize_val(v):
+            if isinstance(v, float) and (pd.isna(v) or np.isinf(v)):
+                return 0.0
+            return v
+
         return {
-            "weights": {k: float(v) for k, v in cleaned_weights.items()},
-            "expected_annual_return": float(performance[0]),
-            "annual_volatility": float(performance[1]),
-            "sharpe_ratio": float(performance[2]),
+            "weights": {k: float(sanitize_val(v)) for k, v in cleaned_weights.items()},
+            "expected_annual_return": float(sanitize_val(performance[0])),
+            "annual_volatility": float(sanitize_val(performance[1])),
+            "sharpe_ratio": float(sanitize_val(performance[2])),
             "method": "Mean-Variance Optimization"
         }
     except Exception as e:
+        print(f"ERROR in MVO calculation: {str(e)}")
         # If solver fails, return a basic mock equal weighting
         n = len(tickers)
         return {
@@ -111,10 +135,27 @@ def optimize_portfolio_black_litterman(
         }
 
     try:
-        cleaned_tickers = [f"{t}.NS" if not t.endswith((".NS", ".BO")) and len(t) <= 6 else t for t in tickers]
-        data = yf.download(cleaned_tickers, period="2y", progress=False)["Close"].ffill().bfill()
+        cleaned_tickers = []
+        for t in tickers:
+            t_up = t.upper().strip()
+            if t_up.endswith((".NS", ".BO")) or t_up in ["AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "META", "NVDA"]:
+                cleaned_tickers.append(t_up)
+            elif len(t_up) <= 6:
+                cleaned_tickers.append(f"{t_up}.NS")
+            else:
+                cleaned_tickers.append(t_up)
+
+        data = yf.download(cleaned_tickers, period="2y", progress=False)["Close"]
         
-        ticker_mapping = {cleaned_tickers[i]: tickers[i] for i in range(len(tickers))}
+        if isinstance(data, pd.Series):
+            data = data.to_frame()
+
+        data = data.ffill().bfill()
+
+        ticker_mapping = {}
+        for i, original in enumerate(tickers):
+            ticker_mapping[cleaned_tickers[i]] = original
+
         data = data.rename(columns=ticker_mapping)
         
         S = risk_models.sample_cov(data)
@@ -156,13 +197,20 @@ def optimize_portfolio_black_litterman(
         cleaned_weights = ef.clean_weights()
         performance = ef.portfolio_performance(verbose=False)
         
+        # Final JSON-ready response sanitization
+        def sanitize_val(v):
+            if isinstance(v, float) and (pd.isna(v) or np.isinf(v)):
+                return 0.0
+            return v
+
         return {
-            "weights": {k: float(v) for k, v in cleaned_weights.items()},
-            "expected_annual_return": float(performance[0]),
-            "annual_volatility": float(performance[1]),
-            "sharpe_ratio": float(performance[2]),
+            "weights": {k: float(sanitize_val(v)) for k, v in cleaned_weights.items()},
+            "expected_annual_return": float(sanitize_val(performance[0])),
+            "annual_volatility": float(sanitize_val(performance[1])),
+            "sharpe_ratio": float(sanitize_val(performance[2])),
             "method": "Black-Litterman Optimization"
         }
     except Exception as e:
+        print(f"ERROR in Black-Litterman calculation: {str(e)}")
         # Fallback to standard MVO on solver failures
         return optimize_portfolio_mvo(tickers, target="max_sharpe")

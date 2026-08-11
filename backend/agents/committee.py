@@ -48,6 +48,7 @@ def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
     Otherwise, falls back to a high-fidelity simulated debate tailored to the tickers.
     """
     api_key_set = (
+        os.environ.get("OPENROUTER_API_KEY") or
         os.environ.get("GEMINI_API_KEY") or
         os.environ.get("OPENAI_API_KEY") or
         os.environ.get("XAI_API_KEY")
@@ -82,19 +83,18 @@ def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
     try:
         from crewai import Agent, Crew, Task, Process
 
-        # Configure the LLM
-        if os.environ.get("XAI_API_KEY"):
-            # Grok is OpenAI compatible
-            from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(
-                model="grok-beta",
-                openai_api_key=os.environ.get("XAI_API_KEY"),
-                openai_api_base="https://api.x.ai/v1"
-            )
+        # 1. Check for Cloud Keys
+        if os.environ.get("OPENROUTER_API_KEY"):
+            llm = "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
         elif os.environ.get("GEMINI_API_KEY"):
-            llm = "gemini/gemini-1.5-flash"
+            llm = "gemini/gemini-flash-latest"
         else:
-            llm = "openai/gpt-4-turbo"
+            # 2. Default to Local LLM (Ollama)
+            # This ensures "Hassle-Free" operation without keys
+            print("INFO: No cloud API keys found. Connecting to Local Ollama (llama3.1)...")
+            llm = "ollama/llama3.1"
+
+        # 1. Define Agents
         
         # 1. Define Agents
         macro_analyst = Agent(
@@ -131,13 +131,13 @@ def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
         
         # 2. Define Tasks
         task1 = Task(
-            description=f"Analyze current economic cycle parameters for the asset universe: {', '.join(tickers_clean)}.",
+            description=f"Analyze current economic cycle parameters for the asset universe: {', '.join(tickers_clean)}. Keep the report professional but concise (max 300 words).",
             expected_output="A structured economic outlook report for these stocks.",
             agent=macro_analyst
         )
         
         task2 = Task(
-            description=f"Review fundamental health metrics and earnings remarks for: {', '.join(tickers_clean)}.",
+            description=f"Review fundamental health metrics and earnings remarks for: {', '.join(tickers_clean)}. Keep the analysis focused on key catalysts (max 300 words).",
             expected_output="An analysis of the key fundamental upside potentials.",
             agent=fundamental_analyst
         )

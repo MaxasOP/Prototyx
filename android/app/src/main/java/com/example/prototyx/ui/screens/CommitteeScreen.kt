@@ -36,9 +36,16 @@ fun CommitteeScreen(
 
     LaunchedEffect(Unit) {
         if (debateResult == null) {
+            isLoading = true
             try {
+                // Ensure a small delay to simulate engine "kickoff" in preview
+                kotlinx.coroutines.delay(500)
                 debateResult = repository.runDebate(listOf("TCS", "RELIANCE"))
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                errorMessage = "Engine initialization failed."
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -101,7 +108,11 @@ fun CommitteeScreen(
         debateResult?.let { res ->
             item {
                 Column {
-                    MetadataLabel(text = "Consensus Solver: ${res.mode}")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MetadataLabel(text = "Consensus Engine: ${res.mode}", color = Color(0xFF1F6C9F))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), RoundedCornerShape(3.dp)))
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
                     
                     res.debateLogs.forEach { log ->
