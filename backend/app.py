@@ -9,6 +9,9 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
+# Import Paytm data functions
+from data.paytm import get_paytm_login_url, exchange_request_token, get_paytm_holdings, disconnect_paytm
+
 # --- Lazy/Conditional Imports for Quant/AI modules ---
 # These modules might fail to import if dependencies (like PyPortfolioOpt or CrewAI)
 # fail to install on newer Python versions (e.g., 3.14).
@@ -85,7 +88,11 @@ def read_root():
             "/api/earnings/transcript",
             "/api/quant/risk-mesh",
             "/api/quant/optimize",
-            "/api/agents/debate"
+            "/api/agents/debate",
+            "/api/paytm/login_url",
+            "/api/paytm/callback",
+            "/api/paytm/holdings",
+            "/api/paytm/disconnect"
         ]
     }
 
@@ -146,6 +153,53 @@ def run_debate(request: TickerListRequest):
     """
     debate_result = run_debate_safe(request.tickers)
     return debate_result
+
+# --- Paytm Money Broker Integrations ---
+
+@app.get("/api/paytm/login_url")
+def get_login_url():
+    """
+    Generates Paytm Money login link.
+    """
+    return get_paytm_login_url()
+
+@app.get("/api/paytm/callback")
+def paytm_callback(request_token: str):
+    """
+    Callback landing page that exchanges the request token for a JWT Access Token.
+    Returns an HTML success redirect message.
+    """
+    result = exchange_request_token(request_token)
+    if result.get("status") == "success":
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(
+            content="""
+            <html>
+                <head><title>Prototyx Paytm Authenticated</title></head>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding-top: 100px; background-color: #f4f6f9;">
+                    <div style="background: white; padding: 40px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <h2 style="color: #4CAF50; margin-bottom: 10px;">Paytm Money Connected Successfully!</h2>
+                        <p style="color: #555;">You can now close this browser tab and return to the Prototyx Android App.</p>
+                    </div>
+                </body>
+            </html>
+            """
+        )
+    raise HTTPException(status_code=400, detail=result.get("message", "Paytm Money callback error"))
+
+@app.get("/api/paytm/holdings")
+def paytm_holdings():
+    """
+    Returns user stock holdings from Paytm Money.
+    """
+    return get_paytm_holdings()
+
+@app.post("/api/paytm/disconnect")
+def paytm_disconnect():
+    """
+    Disconnects the Paytm session by clearing tokens.
+    """
+    return disconnect_paytm()
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

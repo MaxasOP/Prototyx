@@ -68,4 +68,25 @@ class MockDataRepository : DataRepository {
         impliedViews = tickers.associateWith { if (it == "TCS") 0.16 else if (it == "RELIANCE") 0.14 else 0.12 },
         confidences = tickers.map { 0.85 }
     )
+
+    override suspend fun getPaytmLoginUrl(): PaytmLoginUrlResponse = PaytmLoginUrlResponse(
+        url = "http://10.0.2.2:8000/api/paytm/callback?request_token=mock_request_token_12345",
+        mode = "Mock Presentation Mode"
+    )
+
+    override suspend fun getPaytmHoldings(): PaytmHoldingsResponse = PaytmHoldingsResponse(
+        connected = true,
+        holdings = listOf(
+            PaytmAsset("TCS", "Tata Consultancy Services Ltd", 10, 35000.0, 0.35),
+            PaytmAsset("RELIANCE", "Reliance Industries Ltd", 15, 36000.0, 0.36),
+            PaytmAsset("AAPL", "Apple Inc.", 12, 19200.0, 0.19),
+            PaytmAsset("INFY", "Infosys Ltd", 8, 10000.0, 0.10)
+        ),
+        source = "Simulated Mock Database"
+    )
+
+    override suspend fun disconnectPaytm(): PaytmDisconnectResponse = PaytmDisconnectResponse(
+        status = "success",
+        message = "Disconnected from mock session"
+    )
 }

@@ -97,3 +97,29 @@ data class DebateResponse(
     @SerializedName("implied_views") val impliedViews: Map<String, Double>,
     val confidences: List<Double>
 )
+
+// --- Paytm Models ---
+data class PaytmLoginUrlResponse(
+    val url: String,
+    val mode: String
+)
+
+data class PaytmAsset(
+    val ticker: String,
+    val name: String,
+    val quantity: Int,
+    @SerializedName("market_value") val marketValue: Double,
+    val weight: Double
+)
+
+data class PaytmHoldingsResponse(
+    val connected: Boolean,
+    val holdings: List<PaytmAsset>,
+    val source: String,
+    val error: String? = null
+)
+
+data class PaytmDisconnectResponse(
+    val status: String,
+    val message: String
+)
