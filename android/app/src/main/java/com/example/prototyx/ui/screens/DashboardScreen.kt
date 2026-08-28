@@ -106,6 +106,23 @@ fun DashboardScreen(
                     TechnicalMetricItem("Relative Strength Index", data.rsi?.let { String.format("%.2f", it) } ?: "N/A")
                     TechnicalMetricItem("50-Day Moving Avg", "₹${data.sma50?.let { String.format("%.2f", it) } ?: "N/A"}")
                     TechnicalMetricItem("200-Day Moving Avg", "₹${data.sma200?.let { String.format("%.2f", it) } ?: "N/A"}")
+
+                    data.aiMemo?.let { memo ->
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = memo,
+                                fontSize = 13.sp,
+                                color = Color.Black.copy(alpha = 0.7f),
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
                 }
             }
         }

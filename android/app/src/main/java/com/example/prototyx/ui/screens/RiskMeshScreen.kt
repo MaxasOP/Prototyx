@@ -127,6 +127,20 @@ fun RiskMeshScreen(
                             Text(getBetaDesc(res.portfolioBeta), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                     }
+
+                    res.aiRiskAudit?.let { audit ->
+                        Spacer(modifier = Modifier.height(24.dp))
+                        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                        Spacer(modifier = Modifier.height(24.dp))
+                        MetadataLabel(text = "Defense Strategy", color = Color(0xFF9F2F2D))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = audit,
+                            fontSize = 13.sp,
+                            color = Color.Black.copy(alpha = 0.7f),
+                            lineHeight = 20.sp
+                        )
+                    }
                 }
             }
 

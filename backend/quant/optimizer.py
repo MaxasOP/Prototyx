@@ -1,7 +1,7 @@
 from typing import Dict, List, Any, Optional
 import random
 
-def optimize_portfolio_mvo(tickers: List[str]) -> Dict[str, Any]:
+def optimize_portfolio_mvo(tickers: List[str], views: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
     """
     Simulates Mean-Variance Optimization using local statistical logic.
     No external data used.
@@ -19,12 +19,16 @@ def optimize_portfolio_mvo(tickers: List[str]) -> Dict[str, Any]:
         remaining -= w
     weights[clean_tickers[-1]] = round(remaining, 4)
 
+    from agents.committee import generate_optimizer_rationale
+    rationale = generate_optimizer_rationale(weights, views)
+
     return {
         "weights": weights,
         "expected_annual_return": 0.142,
         "annual_volatility": 0.118,
         "sharpe_ratio": 1.20,
         "method": "Local Strategic Optimization (Offline)",
+        "ai_rationale": rationale,
         "source": "Local Statistical Model"
     }
 
@@ -34,4 +38,4 @@ def optimize_portfolio_black_litterman(tickers: List[str], views: Dict[str, floa
     """
     # Simply use the MVO result for now, as Black-Litterman requires S matrix
     # which we've moved to a static model in Risk Mesh.
-    return optimize_portfolio_mvo(tickers)
+    return optimize_portfolio_mvo(tickers, views)

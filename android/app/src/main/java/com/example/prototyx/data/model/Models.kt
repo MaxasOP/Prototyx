@@ -46,7 +46,8 @@ data class MarketIndicatorsResponse(
     @SerializedName("market_cap") val marketCap: Double?,
     @SerializedName("52_week_high") val fiftyTwoWeekHigh: Double?,
     @SerializedName("52_week_low") val fiftyTwoWeekLow: Double?,
-    @SerializedName("dividend_yield") val dividendYield: Double?
+    @SerializedName("dividend_yield") val dividendYield: Double?,
+    @SerializedName("ai_memo") val aiMemo: String? = null
 )
 
 data class AiIntelligence(
@@ -86,7 +87,8 @@ data class RiskMeshResponse(
     @SerializedName("hedged_positions") val hedgedPositions: List<HedgedPosition>,
     @SerializedName("net_exposure_index") val netExposureIndex: Double,
     val betas: Map<String, Double>,
-    @SerializedName("portfolio_beta") val portfolioBeta: Double
+    @SerializedName("portfolio_beta") val portfolioBeta: Double,
+    @SerializedName("ai_risk_audit") val aiRiskAudit: String? = null
 )
 
 data class OptimizeResponse(
@@ -94,7 +96,8 @@ data class OptimizeResponse(
     @SerializedName("expected_annual_return") val expectedAnnualReturn: Double,
     @SerializedName("annual_volatility") val annualVolatility: Double,
     @SerializedName("sharpe_ratio") val sharpeRatio: Double,
-    val method: String
+    val method: String,
+    @SerializedName("ai_rationale") val aiRationale: String? = null
 )
 
 data class AgentDebateLog(

@@ -27,7 +27,8 @@ class MockDataRepository : DataRepository {
         marketCap = 10000000.0,
         fiftyTwoWeekHigh = 1100.0,
         fiftyTwoWeekLow = 800.0,
-        dividendYield = 0.02
+        dividendYield = 0.02,
+        aiMemo = "TCS is currently exhibiting a strong bullish divergence on the daily RSI while maintaining a resilient 24.5% operating margin despite sector-wide headwinds. The formation of a classic base at the 200-DMA suggests a favorable accumulation zone for long-term investors."
     )
     
     override suspend fun getTranscript(ticker: String, year: Int, quarter: Int): EarningsTranscriptResponse = EarningsTranscriptResponse(
@@ -55,7 +56,8 @@ class MockDataRepository : DataRepository {
         hedgedPositions = listOf(HedgedPosition("RELIANCE", "NIFTY-PE", -0.4, "Natural hedge detected via derivative buffer.")),
         netExposureIndex = 0.42,
         betas = tickers.associateWith { if (it == "AAPL") 1.2 else 0.95 },
-        portfolioBeta = 1.05
+        portfolioBeta = 1.05,
+        aiRiskAudit = "The portfolio is currently well-diversified but shows a structural overlap in the Indian IT sector via TCS and INFY. To enhance resilience, I recommend a 5% shift from IT into cash or US-indexed assets to lower the Net Exposure Index below 0.40."
     )
     
     override suspend fun getOptimization(tickers: List<String>, views: Map<String, Double>?): OptimizeResponse = OptimizeResponse(
@@ -63,7 +65,8 @@ class MockDataRepository : DataRepository {
         expectedAnnualReturn = 0.154,
         annualVolatility = 0.112,
         sharpeRatio = 1.28,
-        method = "Black-Litterman Strategic Optimization"
+        method = "Black-Litterman Strategic Optimization",
+        aiRationale = "The optimization engine has slightly tilted the portfolio towards Apple to capitalize on your high conviction view while maintaining a core defensive weight in TCS to buffer against potential volatility. This results in a superior Sharpe ratio of 1.28 by minimizing technical overlap."
     )
     
     override suspend fun runDebate(tickers: List<String>): DebateResponse = DebateResponse(

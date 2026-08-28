@@ -49,6 +49,9 @@ def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[st
     betas = {t: (1.2 if t == "AAPL" else 0.95) for t in clean_tickers}
     portfolio_beta = float(np.dot(norm_weights, [betas.get(t, 1.0) for t in clean_tickers]))
 
+    from agents.committee import generate_risk_audit
+    risk_audit = generate_risk_audit(round(nei, 3), round(portfolio_beta, 2), redundant)
+
     return {
         "tickers": clean_tickers,
         "weights": [round(float(w), 3) for w in norm_weights],
@@ -58,5 +61,6 @@ def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[st
         "net_exposure_index": round(nei, 3),
         "betas": betas,
         "portfolio_beta": round(portfolio_beta, 2),
+        "ai_risk_audit": risk_audit,
         "source": "Local Structural Analysis"
     }

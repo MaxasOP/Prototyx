@@ -155,6 +155,20 @@ fun OptimizerScreen(
                         AllocationRow(ticker, weight)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
+
+                    res.aiRationale?.let { rationale ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                        Spacer(modifier = Modifier.height(24.dp))
+                        MetadataLabel(text = "Optimization Rationale", color = Color(0xFF1F6C9F))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = rationale,
+                            fontSize = 13.sp,
+                            color = Color.Black.copy(alpha = 0.7f),
+                            lineHeight = 20.sp
+                        )
+                    }
                 }
             }
         }

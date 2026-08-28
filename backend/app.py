@@ -23,8 +23,8 @@ def calculate_exposure_mesh_local(tickers: List[str], weights: List[float]):
     return calculate_exposure_mesh(tickers, weights)
 
 def optimize_portfolio_local(tickers: List[str], views: Optional[Dict[str, float]]):
-    from quant.optimizer import optimize_portfolio_mvo # Simplified to MVO for local
-    return optimize_portfolio_mvo(tickers)
+    from quant.optimizer import optimize_portfolio_mvo
+    return optimize_portfolio_mvo(tickers, views)
 
 def run_debate_local(tickers: List[str]):
     from agents.committee import run_committee_debate
@@ -116,4 +116,5 @@ async def run_consult(request: ConsultRequest):
 # Paytm endpoints removed as per user request to be API-free.
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

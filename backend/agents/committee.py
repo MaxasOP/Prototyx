@@ -156,6 +156,69 @@ def generate_earnings_transcript_llm(ticker: str, year: int, quarter: int) -> Di
             "qa_session": "N/A"
         }
 
+def generate_asset_memo(ticker: str, metrics: Dict[str, Any]) -> str:
+    """
+    Generates a 2-sentence AI memo about an asset's technical and market position.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = f"Analyze {ticker} with these metrics: {metrics}. Provide a 2-sentence professional market memo. NO markdown."
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    except: return "Intelligence summary temporarily unavailable."
+
+def generate_optimizer_rationale(weights: Dict[str, float], views: Optional[Dict[str, float]]) -> str:
+    """
+    Explains the 'why' behind the portfolio optimization.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = f"Explain this portfolio allocation: {weights} based on these views: {views}. Keep it to 2-3 professional sentences. NO markdown."
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    except: return "Optimization rationale unavailable."
+
+def generate_risk_audit(nei: float, beta: float, redundancies: List[Dict]) -> str:
+    """
+    Provides a professional audit of the portfolio's systemic vulnerabilities.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = f"Audit this portfolio: Net Exposure Index={nei}, Beta={beta}, Overlaps={redundancies}. Provide a 2-sentence defense strategy. NO markdown."
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    except: return "Risk audit summary unavailable."
+
 def summarize_earnings_llm(ticker: str, transcript_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fast real-time summarization via OpenRouter.

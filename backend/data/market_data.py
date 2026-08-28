@@ -35,18 +35,21 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
 
     if ticker_up in LLM_METRICS:
         metrics = LLM_METRICS[ticker_up]
-        return {
+        data = {
             "ticker": ticker_up,
             **metrics,
             "52_week_high": metrics["close"] * 1.1,
             "52_week_low": metrics["close"] * 0.8,
             "source": "Local LLM Knowledge Base"
         }
+        from agents.committee import generate_asset_memo
+        data["ai_memo"] = generate_asset_memo(ticker_up, data)
+        return data
 
     # If not in our specific high-fidelity map, provide a realistic static estimate
     random.seed(hash(ticker_up))
     base = random.uniform(100, 5000)
-    return {
+    metrics = {
         "ticker": ticker_up,
         "close": base,
         "sma_50": base * 0.95,
@@ -60,3 +63,7 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
         "52_week_low": base * 0.7,
         "source": "Local Statistical Inference"
     }
+    
+    from agents.committee import generate_asset_memo
+    metrics["ai_memo"] = generate_asset_memo(ticker_up, metrics)
+    return metrics
