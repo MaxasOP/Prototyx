@@ -27,19 +27,15 @@ fun RiskMeshScreen(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var inputHoldings by remember { mutableStateOf("TCS=0.30, RELIANCE=0.40, AAPL=0.20, INFY=0.10") }
     
+    // State for Dynamic Holdings
+    var holdings by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var tickerInput by remember { mutableStateOf("") }
+    var weightInput by remember { mutableStateOf("") }
+
     var riskMeshResult by remember { mutableStateOf<RiskMeshResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        if (riskMeshResult == null) {
-            try {
-                riskMeshResult = repository.getRiskMesh(listOf("TCS", "RELIANCE", "AAPL", "INFY"), listOf(0.3, 0.4, 0.2, 0.1))
-            } catch (e: Exception) {}
-        }
-    }
 
     LazyColumn(
         modifier = modifier
@@ -48,7 +44,7 @@ fun RiskMeshScreen(
         contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        item {
+        item(key = "heading") {
             Column {
                 EditorialHeading(text = "Cross-Asset Risk Mesh")
                 Spacer(modifier = Modifier.height(8.dp))
@@ -56,56 +52,93 @@ fun RiskMeshScreen(
             }
         }
 
-        item {
+        item(key = "config_card") {
             DoubleBezelCard {
                 MetadataLabel(text = "Asset Configuration")
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                OutlinedTextField(
-                    value = inputHoldings,
-                    onValueChange = { inputHoldings = it },
-                    label = { Text("Current Positions", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = tickerInput,
+                        onValueChange = { tickerInput = it },
+                        label = { Text("Ticker (e.g. BTC)", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1.5f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                        )
                     )
-                )
+                    OutlinedTextField(
+                        value = weightInput,
+                        onValueChange = { weightInput = it },
+                        label = { Text("Weight", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                        )
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                PrimaryButton(
-                    text = "Analyze Risk Mesh",
-                    onClick = {
-                        coroutineScope.launch {
-                            isLoading = true
-                            errorMessage = null
-                            riskMeshResult = null
-                            try {
-                                val tickers = mutableListOf<String>()
-                                val weights = mutableListOf<Double>()
-                                inputHoldings.split(",").forEach { item ->
-                                    val parts = item.split("=")
-                                    if (parts.size == 2) {
-                                        val t = parts[0].trim().uppercase()
-                                        val w = parts[1].trim().toDoubleOrNull()
-                                        if (w != null && t.isNotEmpty()) {
-                                            tickers.add(t)
-                                            weights.add(w)
-                                        }
-                                    }
-                                }
-                                riskMeshResult = repository.getRiskMesh(tickers, weights)
-                            } catch (e: Exception) {
-                                errorMessage = "Risk engine connection failure."
-                            } finally {
-                                isLoading = false
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            val ticker = tickerInput.trim().uppercase()
+                            val weight = weightInput.toDoubleOrNull() ?: 0.0
+                            if (ticker.isNotEmpty()) {
+                                val newHoldings = holdings.toMutableMap()
+                                if (weight > 0) newHoldings[ticker] = weight else newHoldings.remove(ticker)
+                                holdings = newHoldings
+                                tickerInput = ""
+                                weightInput = ""
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    isLoading = isLoading
-                )
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.05f), contentColor = Color.Black)
+                    ) {
+                        Text("Add/Update", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    PrimaryButton(
+                        text = "Analyze Mesh",
+                        onClick = {
+                            coroutineScope.launch {
+                                if (holdings.isEmpty()) {
+                                    errorMessage = "Please add at least one asset."
+                                    return@launch
+                                }
+                                isLoading = true
+                                errorMessage = null
+                                riskMeshResult = null
+                                try {
+                                    riskMeshResult = repository.getRiskMesh(holdings.keys.toList(), holdings.values.toList())
+                                } catch (e: Exception) {
+                                    errorMessage = "Risk engine connection failure: ${e.message ?: "Unknown error"}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        isLoading = isLoading
+                    )
+                }
+                
+                if (holdings.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MetadataLabel(text = "Current Basket: ${holdings.keys.joinToString(", ")}")
+                }
+            }
+        }
+
+        errorMessage?.let { error ->
+            item(key = "error") {
+                Text(text = error, color = Color.Red, fontSize = 12.sp)
             }
         }
 

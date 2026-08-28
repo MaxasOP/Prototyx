@@ -46,8 +46,8 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = Color.White,
-                tonalElevation = 0.dp
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
             ) {
                 val currentScreen = backStack.lastOrNull() ?: Main
                 tabs.forEach { tab ->
@@ -63,7 +63,7 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
                                 imageVector = tab.icon, 
                                 contentDescription = tab.title,
                                 modifier = Modifier.size(20.dp),
-                                tint = if (isSelected) Color.Black else Color.Gray.copy(alpha = 0.5f)
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             ) 
                         },
                         label = { 
@@ -72,7 +72,7 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
                                 fontSize = 9.sp,
                                 fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
                                 letterSpacing = 0.5.sp,
-                                color = if (isSelected) Color.Black else Color.Gray.copy(alpha = 0.5f)
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             ) 
                         },
                         colors = NavigationBarItemDefaults.colors(

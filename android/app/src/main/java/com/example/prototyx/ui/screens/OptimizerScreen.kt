@@ -3,6 +3,7 @@ package com.example.prototyx.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,26 +26,17 @@ fun OptimizerScreen(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var tickerInput by remember { mutableStateOf("TCS, RELIANCE, AAPL, INFY") }
-    var viewsInput by remember { mutableStateOf("TCS=0.16, RELIANCE=0.14, AAPL=0.18") }
+    
+    // State for Dynamic Universe and Views
+    var universe by remember { mutableStateOf<List<String>>(emptyList()) }
+    var views by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    
+    var tickerInput by remember { mutableStateOf("") }
+    var viewInput by remember { mutableStateOf("") }
     
     var optimizationResult by remember { mutableStateOf<OptimizeResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Load mock data if null (for previews and initial state)
-    LaunchedEffect(Unit) {
-        if (optimizationResult == null) {
-            try {
-                optimizationResult = repository.getOptimization(
-                    tickerInput.split(",").map { it.trim() },
-                    mapOf("TCS" to 0.16)
-                )
-            } catch (e: Exception) {
-                // Silently fail for initial load
-            }
-        }
-    }
 
     LazyColumn(
         modifier = modifier
@@ -54,7 +46,7 @@ fun OptimizerScreen(
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         // Header
-        item {
+        item(key = "heading") {
             Column {
                 EditorialHeading(text = "Black-Litterman Strategic Optimization")
                 Spacer(modifier = Modifier.height(8.dp))
@@ -62,69 +54,96 @@ fun OptimizerScreen(
             }
         }
 
-        // Configuration
-        item {
+        // Configuration (Universal Discovery)
+        item(key = "config_card") {
             DoubleBezelCard {
-                MetadataLabel(text = "Optimization Parameters")
+                MetadataLabel(text = "Universe & Forecasts")
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                OutlinedTextField(
-                    value = tickerInput,
-                    onValueChange = { tickerInput = it },
-                    label = { Text("Asset Universe", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = tickerInput,
+                        onValueChange = { tickerInput = it },
+                        label = { Text("Ticker", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1.5f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                        )
                     )
-                )
+                    OutlinedTextField(
+                        value = viewInput,
+                        onValueChange = { viewInput = it },
+                        label = { Text("Exp. Return", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                        )
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = viewsInput,
-                    onValueChange = { viewsInput = it },
-                    label = { Text("Subjective Return Views", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                PrimaryButton(
-                    text = "Solve Strategic Weights",
-                    onClick = {
-                        coroutineScope.launch {
-                            isLoading = true
-                            errorMessage = null
-                            optimizationResult = null
-                            try {
-                                val tickers = tickerInput.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
-                                val views = mutableMapOf<String, Double>()
-                                if (viewsInput.isNotEmpty()) {
-                                    viewsInput.split(",").forEach { item ->
-                                        val parts = item.split("=")
-                                        if (parts.size == 2) {
-                                            val ticker = parts[0].trim().uppercase()
-                                            val value = parts[1].trim().toDoubleOrNull()
-                                            if (value != null) views[ticker] = value
-                                        }
-                                    }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            val ticker = tickerInput.trim().uppercase()
+                            val expectedReturn = viewInput.toDoubleOrNull()
+                            if (ticker.isNotEmpty()) {
+                                if (!universe.contains(ticker)) universe = universe + ticker
+                                if (expectedReturn != null) {
+                                    views = views + (ticker to expectedReturn)
                                 }
-                                optimizationResult = repository.getOptimization(tickers, if (views.isNotEmpty()) views else null)
-                            } catch (e: Exception) {
-                                errorMessage = "Solver engine unreachable. Verify Python backend."
-                            } finally {
-                                isLoading = false
+                                tickerInput = ""
+                                viewInput = ""
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    isLoading = isLoading
-                )
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.05f), contentColor = Color.Black)
+                    ) {
+                        Text("Add Asset", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    PrimaryButton(
+                        text = "Solve Weights",
+                        onClick = {
+                            coroutineScope.launch {
+                                if (universe.isEmpty()) {
+                                    errorMessage = "Please add assets to your universe."
+                                    return@launch
+                                }
+                                isLoading = true
+                                errorMessage = null
+                                optimizationResult = null
+                                try {
+                                    optimizationResult = repository.getOptimization(universe, if (views.isNotEmpty()) views else null)
+                                } catch (e: Exception) {
+                                    errorMessage = "Solver engine unreachable: ${e.message ?: "Verify Python backend"}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        isLoading = isLoading
+                    )
+                }
+
+                if (universe.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MetadataLabel(text = "Universe: ${universe.joinToString(", ")}")
+                    if (views.isNotEmpty()) {
+                        Text(
+                            text = "Views: ${views.map { "${it.key}=${(it.value*100).toInt()}%" }.joinToString(", ")}",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
             }
         }
 

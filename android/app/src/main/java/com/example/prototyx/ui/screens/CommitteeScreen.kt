@@ -139,7 +139,7 @@ fun CommitteeScreen(
                                 try {
                                     consultResult = repository.runConsult(userQuery)
                                 } catch (e: Exception) {
-                                    errorMessage = "Orchestration failed. Check backend/Groq status."
+                                    errorMessage = "Orchestration failed: ${e.message ?: "Check backend/Groq status"}"
                                 } finally {
                                     isLoadingConsult = false
                                 }
@@ -220,7 +220,7 @@ fun CommitteeScreen(
                                     val tickers = inputTickers.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
                                     debateResult = repository.runDebate(tickers)
                                 } catch (e: Exception) {
-                                    errorMessage = "Orchestration failed. Verify agent server status."
+                                    errorMessage = "Orchestration failed: ${e.message ?: "Verify agent server status"}"
                                 } finally {
                                     isLoadingDebate = false
                                 }

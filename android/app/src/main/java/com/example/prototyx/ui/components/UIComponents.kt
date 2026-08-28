@@ -25,15 +25,15 @@ fun DoubleBezelCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.03f), shape = RoundedCornerShape(24.dp))
-            .border(1.dp, Color.Black.copy(alpha = 0.05f), shape = RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f), shape = RoundedCornerShape(24.dp))
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), shape = RoundedCornerShape(24.dp))
             .padding(6.dp)
     ) {
         // Inner Core - Use Column directly with background for performance
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(SurfaceWhite, shape = RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(18.dp))
                 .padding(20.dp),
             content = content
         )
@@ -44,7 +44,7 @@ fun DoubleBezelCard(
 fun EditorialHeading(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = TextCharcoal
+    color: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Text(
         text = text,
@@ -61,7 +61,7 @@ fun EditorialHeading(
 fun MetadataLabel(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = TextMuted
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Text(
         text = text.uppercase(),
@@ -86,7 +86,7 @@ fun BentoMetric(
             text = value,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = TextCharcoal
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -104,8 +104,8 @@ fun PrimaryButton(
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = TextCharcoal,
-            contentColor = SurfaceWhite
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ),
         enabled = enabled && !isLoading
     ) {

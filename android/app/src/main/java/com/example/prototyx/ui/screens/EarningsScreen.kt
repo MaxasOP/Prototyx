@@ -75,7 +75,7 @@ fun EarningsScreen(
                             try {
                                 transcriptResult = repository.getTranscript(tickerInput.trim().uppercase())
                             } catch (e: Exception) {
-                                errorMessage = "Intelligence Gap: No data found for ${tickerInput.uppercase()}."
+                                errorMessage = "Intelligence Gap: ${e.message ?: "No data found for ${tickerInput.uppercase()}"}"
                             } finally {
                                 isLoading = false
                             }
