@@ -7,8 +7,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    // Using local IP as fallback for better connectivity on some Windows setups
-    private var baseUrl = "http://192.168.29.34:8000/"
+    // Production URL on Render
+    private var baseUrl = "https://prototyx.onrender.com/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
