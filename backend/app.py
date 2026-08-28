@@ -6,45 +6,40 @@ from typing import List, Dict, Optional, Any
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file
+# Load environment variables (mostly for consistency, though we are local-first now)
 load_dotenv()
 
-# Import Paytm data functions
-from data.paytm import get_paytm_login_url, exchange_request_token, get_paytm_holdings, disconnect_paytm
-
-# --- Lazy/Conditional Imports for Quant/AI modules ---
-# These modules might fail to import if dependencies (like PyPortfolioOpt or CrewAI)
-# fail to install on newer Python versions (e.g., 3.14).
-
-def get_indicators_safe(ticker: str):
+# --- Simplified Data Access (Local LLM & Archive Only) ---
+def get_indicators_local(ticker: str):
     from data.market_data import get_latest_metrics
     return get_latest_metrics(ticker)
 
-def get_transcript_safe(ticker: str, year: int, quarter: int):
+def get_transcript_local(ticker: str, year: int, quarter: int):
     from data.earnings import get_earnings_transcript
     return get_earnings_transcript(ticker, year, quarter)
 
-def calculate_exposure_mesh_safe(tickers: List[str], weights: List[float]):
+def calculate_exposure_mesh_local(tickers: List[str], weights: List[float]):
     from quant.risk_mesh import calculate_exposure_mesh
     return calculate_exposure_mesh(tickers, weights)
 
-def optimize_portfolio_safe(tickers: List[str], views: Optional[Dict[str, float]]):
-    from quant.optimizer import optimize_portfolio_black_litterman, optimize_portfolio_mvo
-    if views:
-        return optimize_portfolio_black_litterman(tickers, views)
+def optimize_portfolio_local(tickers: List[str], views: Optional[Dict[str, float]]):
+    from quant.optimizer import optimize_portfolio_mvo # Simplified to MVO for local
     return optimize_portfolio_mvo(tickers)
 
-def run_debate_safe(tickers: List[str]):
+def run_debate_local(tickers: List[str]):
     from agents.committee import run_committee_debate
     return run_committee_debate(tickers)
 
+async def run_consult_local(query: str):
+    from agents.orchestrator import run_consultation
+    return await run_consultation(query)
+
 app = FastAPI(
-    title="Prototyx AI Wealth Backend",
-    description="Enterprise Multi-Agent Investment Advisory & Quantitative Analysis Engine.",
-    version="1.0.0"
+    title="Prototyx Local AI Terminal",
+    description="Offline-First Multi-Agent Wealth Intelligence Powered by Llama 3.1",
+    version="2.0.0"
 )
 
-# Enable CORS for frontend/Android integrations
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -65,141 +60,60 @@ class OptimizeRequest(BaseModel):
     tickers: List[str]
     views: Optional[Dict[str, float]] = None
 
-# --- Mock Ticker search using FinanceDatabase sector tags ---
-MOCK_DATABASE = [
-    {"ticker": "TCS", "name": "Tata Consultancy Services Ltd", "sector": "Technology", "industry": "IT Services", "exchange": "NSE"},
-    {"ticker": "INFY", "name": "Infosys Ltd", "sector": "Technology", "industry": "IT Services", "exchange": "NSE"},
-    {"ticker": "RELIANCE", "name": "Reliance Industries Ltd", "sector": "Energy & Retail", "industry": "Conglomerate", "exchange": "NSE"},
-    {"ticker": "HDFCBANK", "name": "HDFC Bank Ltd", "sector": "Financial Services", "industry": "Banking", "exchange": "NSE"},
-    {"ticker": "ICICIBANK", "name": "ICICI Bank Ltd", "sector": "Financial Services", "industry": "Banking", "exchange": "NSE"},
-    {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology", "industry": "Consumer Electronics", "exchange": "NASDAQ"},
-    {"ticker": "MSFT", "name": "Microsoft Corp.", "sector": "Technology", "industry": "Software", "exchange": "NASDAQ"},
-    {"ticker": "TSLA", "name": "Tesla Inc.", "sector": "Automotive", "industry": "Electric Vehicles", "exchange": "NASDAQ"}
-]
+class ConsultRequest(BaseModel):
+    query: str
 
 @app.get("/")
 def read_root():
     return {
         "status": "online",
-        "app_name": "Prototyx Core Backend Engine",
-        "supported_apis": [
-            "/api/tickers/search",
-            "/api/market/indicators",
-            "/api/earnings/transcript",
-            "/api/quant/risk-mesh",
-            "/api/quant/optimize",
-            "/api/agents/debate",
-            "/api/paytm/login_url",
-            "/api/paytm/callback",
-            "/api/paytm/holdings",
-            "/api/paytm/disconnect"
-        ]
+        "mode": "Local-Only (Ollama)",
+        "llm": "Llama 3.1"
     }
-
-@app.get("/api/tickers/search")
-def search_tickers(query: Optional[str] = None, sector: Optional[str] = None):
-    """
-    Search and filter tickers in the universe.
-    """
-    results = MOCK_DATABASE
-    if query:
-        q = query.upper()
-        results = [x for x in results if q in x["ticker"] or q in x["name"].upper()]
-    if sector:
-        s = sector.upper()
-        results = [x for x in results if s in x["sector"].upper()]
-    return results
 
 @app.get("/api/market/indicators/{ticker}")
 def get_indicators(ticker: str):
-    """
-    Fetch technical indicators for a ticker.
-    """
-    metrics = get_indicators_safe(ticker)
-    if "error" in metrics:
-        raise HTTPException(status_code=404, detail=metrics["error"])
-    return metrics
+    try:
+        return get_indicators_local(ticker)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/earnings/transcript/{ticker}")
 def get_transcript(ticker: str, year: int = 2026, quarter: int = 3):
-    """
-    Fetch corporate earnings transcripts.
-    """
-    transcript = get_transcript_safe(ticker, year, quarter)
-    return transcript
+    try:
+        return get_transcript_local(ticker, year, quarter)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/quant/risk-mesh")
 def get_risk_mesh(request: RiskMeshRequest):
-    """
-    Calculate cross-asset correlations and net exposures.
-    """
-    mesh = calculate_exposure_mesh_safe(request.tickers, request.weights)
-    if "error" in mesh:
-        raise HTTPException(status_code=400, detail=mesh["error"])
-    return mesh
+    try:
+        return calculate_exposure_mesh_local(request.tickers, request.weights)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/quant/optimize")
 def get_optimization(request: OptimizeRequest):
-    """
-    Calculate portfolio optimization weights.
-    """
-    result = optimize_portfolio_safe(request.tickers, request.views)
-    return result
+    try:
+        return optimize_portfolio_local(request.tickers, request.views)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/agents/debate")
 def run_debate(request: TickerListRequest):
-    """
-    Orchestrates the Investment Committee debate and returns implied return views.
-    """
-    debate_result = run_debate_safe(request.tickers)
-    return debate_result
+    try:
+        return run_debate_local(request.tickers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# --- Paytm Money Broker Integrations ---
+@app.post("/api/agents/consult")
+async def run_consult(request: ConsultRequest):
+    try:
+        return await run_consult_local(request.query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/paytm/login_url")
-def get_login_url():
-    """
-    Generates Paytm Money login link.
-    """
-    return get_paytm_login_url()
-
-@app.get("/api/paytm/callback")
-def paytm_callback(request_token: str):
-    """
-    Callback landing page that exchanges the request token for a JWT Access Token.
-    Returns an HTML success redirect message.
-    """
-    result = exchange_request_token(request_token)
-    if result.get("status") == "success":
-        from fastapi.responses import HTMLResponse
-        return HTMLResponse(
-            content="""
-            <html>
-                <head><title>Prototyx Paytm Authenticated</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding-top: 100px; background-color: #f4f6f9;">
-                    <div style="background: white; padding: 40px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <h2 style="color: #4CAF50; margin-bottom: 10px;">Paytm Money Connected Successfully!</h2>
-                        <p style="color: #555;">You can now close this browser tab and return to the Prototyx Android App.</p>
-                    </div>
-                </body>
-            </html>
-            """
-        )
-    raise HTTPException(status_code=400, detail=result.get("message", "Paytm Money callback error"))
-
-@app.get("/api/paytm/holdings")
-def paytm_holdings():
-    """
-    Returns user stock holdings from Paytm Money.
-    """
-    return get_paytm_holdings()
-
-@app.post("/api/paytm/disconnect")
-def paytm_disconnect():
-    """
-    Disconnects the Paytm session by clearing tokens.
-    """
-    return disconnect_paytm()
+# Paytm endpoints removed as per user request to be API-free.
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

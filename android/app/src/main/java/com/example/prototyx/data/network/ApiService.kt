@@ -42,12 +42,8 @@ interface ApiService {
         @Body request: TickerListRequest
     ): DebateResponse
 
-    @GET("api/paytm/login_url")
-    suspend fun getPaytmLoginUrl(): PaytmLoginUrlResponse
-
-    @GET("api/paytm/holdings")
-    suspend fun getPaytmHoldings(): PaytmHoldingsResponse
-
-    @POST("api/paytm/disconnect")
-    suspend fun disconnectPaytm(): PaytmDisconnectResponse
+    @POST("api/agents/consult")
+    suspend fun runConsult(
+        @Body request: ConsultRequest
+    ): ConsultResponse
 }

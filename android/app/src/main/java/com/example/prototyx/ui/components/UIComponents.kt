@@ -21,7 +21,7 @@ fun DoubleBezelCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // Outer Shell
+    // Outer Shell - Optimized by using simple Box and Column instead of Card
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -29,18 +29,14 @@ fun DoubleBezelCard(
             .border(1.dp, Color.Black.copy(alpha = 0.05f), shape = RoundedCornerShape(24.dp))
             .padding(6.dp)
     ) {
-        // Inner Core
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                content = content
-            )
-        }
+        // Inner Core - Use Column directly with background for performance
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(SurfaceWhite, shape = RoundedCornerShape(18.dp))
+                .padding(20.dp),
+            content = content
+        )
     }
 }
 

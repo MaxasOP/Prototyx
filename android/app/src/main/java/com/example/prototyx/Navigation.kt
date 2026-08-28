@@ -55,9 +55,7 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
                     NavigationBarItem(
                         selected = isSelected,
                         onClick = {
-                            while (backStack.size > 0) {
-                                backStack.removeLastOrNull()
-                            }
+                            backStack.clear()
                             backStack.add(tab.route)
                         },
                         icon = { 

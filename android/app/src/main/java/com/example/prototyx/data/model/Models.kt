@@ -17,6 +17,10 @@ data class OptimizeRequest(
     val views: Map<String, Double>? = null
 )
 
+data class ConsultRequest(
+    val query: String
+)
+
 // --- Response Bodies ---
 data class TickerSearchResponse(
     val ticker: String,
@@ -45,12 +49,19 @@ data class MarketIndicatorsResponse(
     @SerializedName("dividend_yield") val dividendYield: Double?
 )
 
+data class AiIntelligence(
+    @SerializedName("strategic_takeaways") val strategicTakeaways: List<String>?,
+    val guidance: String?,
+    val sentiment: String?
+)
+
 data class EarningsTranscriptResponse(
     val ticker: String,
     @SerializedName("company_name") val companyName: String,
     val quarter: String,
     @SerializedName("prepared_remarks") val preparedRemarks: String,
-    @SerializedName("qa_session") val qaSession: String
+    @SerializedName("qa_session") val qaSession: String,
+    @SerializedName("ai_intelligence") val aiIntelligence: AiIntelligence? = null
 )
 
 data class RedundantExposure(
@@ -92,34 +103,14 @@ data class AgentDebateLog(
 )
 
 data class DebateResponse(
-    val mode: String,
-    @SerializedName("debate_logs") val debateLogs: List<AgentDebateLog>,
-    @SerializedName("implied_views") val impliedViews: Map<String, Double>,
-    val confidences: List<Double>
+    val mode: String?,
+    @SerializedName("debate_logs") val debateLogs: List<AgentDebateLog>?,
+    @SerializedName("implied_views") val impliedViews: Map<String, Double>?,
+    val confidences: List<Double>?
 )
 
-// --- Paytm Models ---
-data class PaytmLoginUrlResponse(
-    val url: String,
-    val mode: String
-)
-
-data class PaytmAsset(
-    val ticker: String,
-    val name: String,
-    val quantity: Int,
-    @SerializedName("market_value") val marketValue: Double,
-    val weight: Double
-)
-
-data class PaytmHoldingsResponse(
-    val connected: Boolean,
-    val holdings: List<PaytmAsset>,
-    val source: String,
-    val error: String? = null
-)
-
-data class PaytmDisconnectResponse(
-    val status: String,
-    val message: String
+data class ConsultResponse(
+    val asset: String?,
+    val recommendation: String?,
+    @SerializedName("data_summary") val dataSummary: Map<String, Any>?
 )

@@ -13,3 +13,8 @@ requests
 financedatabase
 python-dotenv
 langchain-openai
+litellm
+google-genai
+langchain-community
+duckduckgo-search
+groq

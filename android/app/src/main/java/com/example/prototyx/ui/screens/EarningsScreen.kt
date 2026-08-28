@@ -26,48 +26,36 @@ fun EarningsScreen(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var tickerInput by remember { mutableStateOf("TCS") }
+    var tickerInput by remember { mutableStateOf("") }
     
     var transcriptResult by remember { mutableStateOf<EarningsTranscriptResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        if (transcriptResult == null) {
-            isLoading = true
-            try {
-                kotlinx.coroutines.delay(500)
-                transcriptResult = repository.getTranscript("TCS")
-            } catch (e: Exception) {} finally {
-                isLoading = false
-            }
-        }
-    }
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        item {
+        item(key = "heading") {
             Column {
-                EditorialHeading(text = "Earnings Intelligence Ingestion")
+                EditorialHeading(text = "Earnings Intelligence")
                 Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "Natural Language Corporate Guidance Parsing")
+                MetadataLabel(text = "AI-Driven Corporate Guidance Analysis")
             }
         }
 
-        item {
+        item(key = "input_card") {
             DoubleBezelCard {
-                MetadataLabel(text = "Ingestion Pipeline")
+                MetadataLabel(text = "Asset Selection")
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 OutlinedTextField(
                     value = tickerInput,
                     onValueChange = { tickerInput = it },
-                    label = { Text("Asset Ticker", fontSize = 12.sp) },
+                    label = { Text("Ticker (e.g., RELIANCE, TCS)", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Black,
@@ -78,7 +66,7 @@ fun EarningsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 PrimaryButton(
-                    text = "Analyze Fiscal Dialogue",
+                    text = "Analyze Ingestion Pipeline",
                     onClick = {
                         coroutineScope.launch {
                             isLoading = true
@@ -87,7 +75,7 @@ fun EarningsScreen(
                             try {
                                 transcriptResult = repository.getTranscript(tickerInput.trim().uppercase())
                             } catch (e: Exception) {
-                                errorMessage = "Transcript extraction failed. Verify server link."
+                                errorMessage = "Intelligence Gap: No data found for ${tickerInput.uppercase()}."
                             } finally {
                                 isLoading = false
                             }
@@ -99,9 +87,15 @@ fun EarningsScreen(
             }
         }
 
+        errorMessage?.let { msg ->
+            item(key = "error") {
+                Text(msg, color = Color.Red, fontSize = 14.sp)
+            }
+        }
+
         transcriptResult?.let { res ->
-            item {
-                DoubleBezelCard {
+            item(key = "header_info") {
+                Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         EditorialHeading(text = res.companyName)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -109,40 +103,45 @@ fun EarningsScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        MetadataLabel(text = "Period: ${res.quarter}")
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Box(modifier = Modifier.size(6.dp).background(Color(0xFF1F6C9F), RoundedCornerShape(3.dp)))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        MetadataLabel(text = "AI PARSED", color = Color(0xFF1F6C9F))
+                        MetadataLabel(text = "FY Period: ${res.quarter}")
                     }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    MetadataLabel(text = "Strategic Prepared Remarks")
-                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            // Raw Data Section
+            item(key = "raw_remarks_header") {
+                MetadataLabel(text = "Corporate Guidance (Raw)")
+            }
+
+            item(key = "raw_remarks") {
+                DoubleBezelCard {
                     Text(
                         text = res.preparedRemarks,
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
-                        color = Color.Black.copy(alpha = 0.7f)
+                        color = Color.Black.copy(alpha = 0.6f)
                     )
-                    
-                    Spacer(modifier = Modifier.height(32.dp))
-                    MetadataLabel(text = "Analyst Q&A Synthesis")
-                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            item(key = "qa_header") {
+                MetadataLabel(text = "Analyst Q&A Synthesis")
+            }
+
+            item(key = "qa_content") {
+                DoubleBezelCard {
                     Text(
                         text = res.qaSession,
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
-                        color = Color.Black.copy(alpha = 0.7f)
+                        color = Color.Black.copy(alpha = 0.6f)
                     )
                 }
             }
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable

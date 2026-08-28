@@ -33,9 +33,18 @@ class MockDataRepository : DataRepository {
     override suspend fun getTranscript(ticker: String, year: Int, quarter: Int): EarningsTranscriptResponse = EarningsTranscriptResponse(
         ticker = ticker,
         companyName = if (ticker == "TCS") "Tata Consultancy Services" else "Reliance Industries",
-        quarter = "Q3 2026",
-        preparedRemarks = "We are seeing strong demand in Cloud transformation and GenAI workloads. Operating margins have remained resilient at 24.5%. Our order book stands at a record $10.2B this quarter, driven by large deals in the BFSI and Retail sectors. We remain optimistic about long-term growth despite short-term macro headwinds in European markets.",
-        qaSession = "Analyst: What is the outlook for deal ramp-ups in Q4?\nManagement: We expect conversion to accelerate as client budgets for 2027 are finalized. BFSI is showing early signs of recovery.\nAnalyst: Any impact from pricing pressure?\nManagement: Our value-led approach has helped us maintain premium pricing in specialized AI and Cybersecurity service lines."
+        quarter = "Q1 2027",
+        preparedRemarks = "We have started the year on a strong note, with revenue growing 3.9% year-on-year in constant currency. Growth was driven by strong demand in our Cloud transformation and Generative AI segments. Operating margin was resilient at 24.7%. Our order book remains healthy at $10.2 billion. We are seeing a shift in client spending toward high-ROI automation projects as enterprises recalibrate for the AI-first era.",
+        qaSession = "Analyst: Can you speak to the margin outlook given wage hikes?\nManagement: We have managed the impact through improved utilization and operational efficiency. We expect margins to trend toward the 25-26% band as AI-led automation scales.",
+        aiIntelligence = AiIntelligence(
+            strategicTakeaways = listOf(
+                "Strong 3.9% CC revenue growth led by Cloud and GenAI.",
+                "Order book at record $10.2B indicates high demand durability.",
+                "Margin expansion target of 25-26% through automation efficiency."
+            ),
+            guidance = "Real-time extraction via Nemotron-3 Ultra.",
+            sentiment = "Positive"
+        )
     )
     
     override suspend fun getRiskMesh(tickers: List<String>, weights: List<Double>): RiskMeshResponse = RiskMeshResponse(
@@ -60,33 +69,24 @@ class MockDataRepository : DataRepository {
     override suspend fun runDebate(tickers: List<String>): DebateResponse = DebateResponse(
         mode = "AI Investment Committee (Grok-Beta Engine)",
         debateLogs = listOf(
-            AgentDebateLog("Macro Analyst Agent", "Global liquidity remains tight, but the domestic consumption story in India is decoupled. We should prioritize energy and consumer conglomerates over export-oriented tech in the short term."),
-            AgentDebateLog("Fundamental Analyst Agent", "TCS's cash flow yield of 4.8% provides a significant margin of safety. While INFY has slightly higher growth, TCS's balance sheet management is superior for a conservative portfolio."),
-            AgentDebateLog("Technical Quant Analyst Agent", "RELIANCE has found strong support at its 200-DMA with bullish MACD crossover. AAPL is showing relative strength against the NASDAQ index. Recommend overweight positions."),
-            AgentDebateLog("Compliance & Risk Agent", "To maintain SEBI-tier compliance, we will enforce a 25% individual stock cap. I am flagging the IT sector concentration for re-balancing to ensure net exposure stays below 0.5.")
+            AgentDebateLog("Macro Analyst Agent", "Inflation is stabilizing, and the central bank is likely to hold interest rates steady. This creates a favorable environment for large-cap growth stocks. I recommend maintaining a steady exposure to equities, but keeping a close eye on interest-sensitive sectors."),
+            AgentDebateLog("Fundamental Analyst Agent", "Agreed. Looking at our target stock selection, companies are showing solid earnings growth and expanding margins due to tech adoption. P/E ratios are slightly elevated, but backed by strong return on equity (ROE > 18%). We should overweight core tech and industrial leaders."),
+            AgentDebateLog("Technical Analyst Agent", "From a price momentum perspective, the 50-day moving average is crossing above the 200-day moving average (Golden Cross) for our top tech picks. RSI is healthy at 58, indicating strong buying momentum without being overbought. I support increasing equity weight."),
+            AgentDebateLog("Compliance & Risk Agent", "Under standard portfolio risk constraints, we must avoid sector concentration. I will cap the maximum allocation for any single stock at 25% and enforce a maximum sector allocation of 35% in IT/Technology. This protects the client against systematic sector shocks.")
         ),
         impliedViews = tickers.associateWith { if (it == "TCS") 0.16 else if (it == "RELIANCE") 0.14 else 0.12 },
         confidences = tickers.map { 0.85 }
     )
 
-    override suspend fun getPaytmLoginUrl(): PaytmLoginUrlResponse = PaytmLoginUrlResponse(
-        url = "http://10.0.2.2:8000/api/paytm/callback?request_token=mock_request_token_12345",
-        mode = "Mock Presentation Mode"
-    )
-
-    override suspend fun getPaytmHoldings(): PaytmHoldingsResponse = PaytmHoldingsResponse(
-        connected = true,
-        holdings = listOf(
-            PaytmAsset("TCS", "Tata Consultancy Services Ltd", 10, 35000.0, 0.35),
-            PaytmAsset("RELIANCE", "Reliance Industries Ltd", 15, 36000.0, 0.36),
-            PaytmAsset("AAPL", "Apple Inc.", 12, 19200.0, 0.19),
-            PaytmAsset("INFY", "Infosys Ltd", 8, 10000.0, 0.10)
-        ),
-        source = "Simulated Mock Database"
-    )
-
-    override suspend fun disconnectPaytm(): PaytmDisconnectResponse = PaytmDisconnectResponse(
-        status = "success",
-        message = "Disconnected from mock session"
+    override suspend fun runConsult(query: String): ConsultResponse = ConsultResponse(
+        asset = "TCS",
+        recommendation = "STRATEGIC ACCUMULATE: TCS is currently trading at a 12% discount to its 5-year historical average P/E. The latest earnings transcript reveals a massive pivot towards high-margin AI infrastructure deals, which are not yet fully priced in by the market. Technical indicators show a classic 'Cup and Handle' breakout pattern forming on the weekly chart, supported by rising accumulation-distribution scores. Risk-adjusted returns for the upcoming quarter look exceptionally favorable compared to broader NIFTY-IT peers.",
+        dataSummary = mapOf(
+            "current_price" to 4250.75,
+            "analyst_consensus" to "Strong Buy",
+            "upside_potential" to "14.2%",
+            "risk_score" to 3,
+            "ai_conviction" to 0.89
+        )
     )
 }

@@ -1,194 +1,201 @@
 import os
 import json
+import re
 from typing import Dict, List, Any
-
-# Mock debate transcripts for major Indian and global stock pools
-MOCK_DEBATES = {
-    "default": [
-        {
-            "agent": "Macro Analyst Agent",
-            "message": "Inflation is stabilizing, and the central bank is likely to hold interest rates steady. This creates a favorable environment for large-cap growth stocks. I recommend maintaining a steady exposure to equities, but keeping a close eye on interest-sensitive sectors."
-        },
-        {
-            "agent": "Fundamental Analyst Agent",
-            "message": "Agreed. Looking at our target stock selection, companies are showing solid earnings growth and expanding margins due to tech adoption. P/E ratios are slightly elevated, but backed by strong return on equity (ROE > 18%). We should overweight core tech and industrial leaders."
-        },
-        {
-            "agent": "Technical Analyst Agent",
-            "message": "From a price momentum perspective, the 50-day moving average is crossing above the 200-day moving average (Golden Cross) for our top tech picks. RSI is healthy at 58, indicating strong buying momentum without being overbought. I support increasing equity weight."
-        },
-        {
-            "agent": "Compliance & Risk Agent",
-            "message": "Under standard portfolio risk constraints, we must avoid sector concentration. I will cap the maximum allocation for any single stock at 25% and enforce a maximum sector allocation of 35% in IT/Technology. This protects the client against systematic sector shocks."
-        }
-    ],
-    "TCS_RELIANCE": [
-        {
-            "agent": "Macro Analyst Agent",
-            "message": "The Indian economy continues its strong momentum with GDP growth exceeding 7%. Inflation has cooled to 4.2%, which is favorable for domestic consumer demand. I recommend overweighting Reliance as a proxy for consumer growth (Retail & Jio) and keeping TCS stable as international IT demand recalibrates."
-        },
-        {
-            "agent": "Fundamental Analyst Agent",
-            "message": "Reliance retail EBITDA has expanded by 18%, and Jio's 5G monetization is accelerating. TCS, on the other hand, boasts an impressive ROE of 38% and a record deal pipeline of $10.2B, making it an excellent cash-flow generator. Both are fundamentally robust."
-        },
-        {
-            "agent": "Technical Analyst Agent",
-            "message": "RELIANCE has hit support at its 200-day moving average and is showing a bullish divergence on the MACD. TCS is trading in a tight consolidation band with an RSI of 52, which is prime for breakout. Buying momentum is building."
-        },
-        {
-            "agent": "Compliance & Risk Agent",
-            "message": "Under regulatory compliance rules, we will cap the individual weight of RELIANCE at 30% and TCS at 25% to prevent stock concentration. The remaining portfolio should be allocated to debt/gold buffers to cushion volatility."
-        }
-    ]
-}
+import requests
 
 def run_committee_debate(tickers: List[str]) -> Dict[str, Any]:
     """
-    Orchestrates the Investment Committee debate using CrewAI if API keys are set.
-    Otherwise, falls back to a high-fidelity simulated debate tailored to the tickers.
+    Performs a real-time multi-agent investment committee debate using LLM.
     """
-    api_key_set = (
-        os.environ.get("OPENROUTER_API_KEY") or
-        os.environ.get("GEMINI_API_KEY") or
-        os.environ.get("OPENAI_API_KEY") or
-        os.environ.get("XAI_API_KEY")
-    )
+    tickers_clean = [t.upper().strip().replace(".NS", "") for t in tickers]
     
-    # Clean tickers list
-    tickers_clean = [t.upper().replace(".NS", "") for t in tickers]
+    # 1. Build a prompt that forces a multi-agent dialogue format
+    prompt = f"""
+    Act as an Investment Committee debating these assets: {", ".join(tickers_clean)}.
     
-    if not api_key_set:
-        # Run Simulation Mode
-        debate = MOCK_DEBATES.get("TCS_RELIANCE") if "TCS" in tickers_clean and "RELIANCE" in tickers_clean else MOCK_DEBATES.get("default")
-        
-        # Customize views based on inputs
-        views = {}
-        for t in tickers_clean:
-            if t == "TCS":
-                views[t] = 0.16
-            elif t == "RELIANCE":
-                views[t] = 0.14
-            elif t == "AAPL":
-                views[t] = 0.18
-            else:
-                views[t] = 0.11 # default view return
-                
-        return {
-            "mode": "Simulated (Offline Demo)",
-            "debate_logs": debate,
-            "implied_views": views,
-            "confidences": [0.85] * len(tickers_clean)
-        }
-        
-    try:
-        from crewai import Agent, Crew, Task, Process
+    You must provide a dialogue between 4 agents:
+    1. Macro Analyst Agent: Discuss global/local macro trends and interest rates.
+    2. Fundamental Analyst Agent: Discuss earnings, margins, ROE, and valuations.
+    3. Technical Analyst Agent: Discuss price action, moving averages (50/200 DMA), and RSI.
+    4. Compliance & Risk Agent: Discuss diversification, sector caps, and risk management.
+    
+    FORMAT RULES:
+    - Format each contribution exactly as: [Agent Name]: [Message]
+    - Do not use markdown bolding (**) or headers (###).
+    - Keep each agent's message concise but highly insightful.
+    - End your response with a JSON block mapping ticker symbols to expected 12-month returns (as decimals, e.g., 0.15).
+    """
 
-        # 1. Check for Cloud Keys
-        if os.environ.get("OPENROUTER_API_KEY"):
-            llm = "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free"
-        elif os.environ.get("GEMINI_API_KEY"):
-            llm = "gemini/gemini-flash-latest"
-        else:
-            # 2. Default to Local LLM (Ollama)
-            # This ensures "Hassle-Free" operation without keys
-            print("INFO: No cloud API keys found. Connecting to Local Ollama (llama3.1)...")
-            llm = "ollama/llama3.1"
-
-        # 1. Define Agents
-        
-        # 1. Define Agents
-        macro_analyst = Agent(
-            role='Senior Macroeconomic Analyst',
-            goal='Assess macroeconomic conditions, interest rate environments, and asset class distributions.',
-            backstory="You are a veteran macro economist. You advise on asset rotation between stocks, bonds, and cash based on economic cycles.",
-            verbose=True,
-            llm=llm
-        )
-        
-        fundamental_analyst = Agent(
-            role='Fundamental Stock Analyst',
-            goal='Evaluate individual stock financial health, earnings call results, and corporate governance.',
-            backstory="You are a bottom-up research analyst. You analyze P/E, ROE, and earnings call guidance to find undervalued businesses.",
-            verbose=True,
-            llm=llm
-        )
-        
-        technical_analyst = Agent(
-            role='Technical Quant Analyst',
-            goal='Analyze price trends, RSI, MACD momentum indicators, and support/resistance zones.',
-            backstory="You are a quantitative technician. You focus on market momentum, buying/selling volumes, and trend direction.",
-            verbose=True,
-            llm=llm
-        )
-        
-        compliance_risk = Agent(
-            role='Chief Compliance and Risk Officer',
-            goal='Enforce portfolio risk constraints, sector limits, and ensure SEBI regulatory compliance.',
-            backstory="You are a risk manager. You ensure the portfolio does not hold concentrated stock risks and fits conservative guidelines.",
-            verbose=True,
-            llm=llm
-        )
-        
-        # 2. Define Tasks
-        task1 = Task(
-            description=f"Analyze current economic cycle parameters for the asset universe: {', '.join(tickers_clean)}. Keep the report professional but concise (max 300 words).",
-            expected_output="A structured economic outlook report for these stocks.",
-            agent=macro_analyst
-        )
-        
-        task2 = Task(
-            description=f"Review fundamental health metrics and earnings remarks for: {', '.join(tickers_clean)}. Keep the analysis focused on key catalysts (max 300 words).",
-            expected_output="An analysis of the key fundamental upside potentials.",
-            agent=fundamental_analyst
-        )
-        
-        task3 = Task(
-            description=f"Evaluate trend direction and price indicators for: {', '.join(tickers_clean)}.",
-            expected_output="A list of technical buy/sell triggers.",
-            agent=technical_analyst
-        )
-        
-        task4 = Task(
-            description="Synthesize the recommendations into final portfolio active returns views. Enforce risk caps (max 30% single asset). Output a raw JSON map with format: {'ticker': float_return_view}.",
-            expected_output="A final JSON dictionary of asset return views.",
-            agent=compliance_risk
-        )
-        
-        # 3. Assemble Crew
-        crew = Crew(
-            agents=[macro_analyst, fundamental_analyst, technical_analyst, compliance_risk],
-            tasks=[task1, task2, task3, task4],
-            process=Process.sequential
-        )
-        
-        result = crew.kickoff()
-        
-        # Extract debate logs from agents task outputs
-        debate_logs = [
-            {"agent": "Macro Analyst Agent", "message": str(task1.output.raw)},
-            {"agent": "Fundamental Analyst Agent", "message": str(task2.output.raw)},
-            {"agent": "Technical Analyst Agent", "message": str(task3.output.raw)},
-            {"agent": "Compliance & Risk Agent", "message": str(task4.output.raw)}
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [
+            {"role": "system", "content": "You are a professional investment committee. Use real market knowledge for the provided tickers. Output must be a dialogue followed by a JSON return projection."},
+            {"role": "user", "content": prompt}
         ]
+    }
+
+    try:
+        print(f"DEBUG: Running real-time debate for {tickers_clean}...")
+        response = requests.post(url, headers=headers, json=payload, timeout=90)
+        if response.status_code != 200:
+            raise Exception(f"OpenRouter error: {response.text}")
         
-        # Try to parse final JSON output
+        full_text = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        # 2. Parse the dialogue into AgentDialogueLog format
+        debate_logs = []
+        # Split by lines and look for "[Agent Name]: [Message]" pattern
+        lines = full_text.split("\n")
+        for line in lines:
+            if ":" in line:
+                parts = line.split(":", 1)
+                agent_candidate = parts[0].strip()
+                if "Agent" in agent_candidate or "Analyst" in agent_candidate or "Compliance" in agent_candidate:
+                    debate_logs.append({
+                        "agent": agent_candidate,
+                        "message": parts[1].strip().replace("**", "").replace("*", "")
+                    })
+
+        # Fallback if parsing fails
+        if not debate_logs:
+            debate_logs = [{"agent": "Committee Orchestrator", "message": full_text.split("{")[0].strip()}]
+
+        # 3. Extract JSON Return Views
+        views = {t: 0.12 for t in tickers_clean}
         try:
-            views = json.loads(str(task4.output.raw))
+            json_match = re.findall(r'\{[^{}]*\}', full_text)
+            if json_match:
+                parsed = json.loads(json_match[-1].replace("'", "\""))
+                for t in tickers_clean:
+                    if t in parsed:
+                        views[t] = float(parsed[t])
         except:
-            # Fallback parser if LLM output is not clean JSON
-            views = {t: 0.12 for t in tickers_clean}
-            
+            pass
+
         return {
-            "mode": "Live CrewAI Engine",
+            "mode": "Live Multi-Agent Consensus (Nemotron-3 Ultra)",
             "debate_logs": debate_logs,
             "implied_views": views,
             "confidences": [0.90] * len(tickers_clean)
         }
+
     except Exception as e:
-        # Fallback to simulation mode on failure
+        print(f"CRITICAL: Debate orchestration failed: {e}")
+        raise Exception(f"AI Analysis Engine unreachable. ({str(e)})")
+
+def generate_earnings_transcript_llm(ticker: str, year: int, quarter: int) -> Dict[str, Any]:
+    """
+    Uses real-time AI knowledge to generate a professional earnings synthesis for any ticker.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = f"""
+    Generate a professional investment-grade synthesis of the most recent earnings for {ticker} (FY {year} Q{quarter}).
+    
+    Provide exactly two sections:
+    1. PREPARED REMARKS: A executive summary of revenue growth, margins, and strategic guidance.
+    2. QA SESSION: A synthesis of key analyst questions and management responses.
+    
+    RULES:
+    - Use professional, institutional language.
+    - DO NOT use markdown symbols (*, **, ###).
+    - Use PLAIN TEXT only.
+    - Focus on real market data and guidance for {ticker}.
+    - Keep it concise.
+    """
+    
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [
+            {"role": "system", "content": "You are a professional equity research analyst. Use your internal knowledge of global and Indian markets."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+    
+    try:
+        print(f"DEBUG: AI-Ingesting earnings for {ticker}...")
+        response = requests.post(url, headers=headers, json=payload, timeout=90)
+        full_text = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        # Simple splitting logic
+        remarks = "Intelligence summary unavailable."
+        qa = "Q&A synthesis unavailable."
+        
+        if "PREPARED REMARKS" in full_text.upper():
+            parts = re.split(r'QA SESSION|Q&A SESSION', full_text, flags=re.IGNORECASE)
+            remarks = parts[0].replace("PREPARED REMARKS:", "").replace("PREPARED REMARKS", "").strip()
+            if len(parts) > 1:
+                qa = parts[1].replace("QA SESSION:", "").replace("QA SESSION", "").strip()
+        
         return {
-            "mode": f"Fallback Simulation (Error running CrewAI: {str(e)})",
-            "debate_logs": MOCK_DEBATES.get("default"),
-            "implied_views": {t: 0.12 for t in tickers_clean},
-            "confidences": [0.80] * len(tickers_clean)
+            "ticker": ticker,
+            "company_name": f"{ticker} Corporation",
+            "quarter": f"Q{quarter} {year}",
+            "prepared_remarks": remarks.replace("**", "").replace("*", ""),
+            "qa_session": qa.replace("**", "").replace("*", "")
         }
+    except Exception as e:
+        print(f"ERROR: AI Ingestion failed: {e}")
+        return {
+            "ticker": ticker,
+            "company_name": ticker,
+            "quarter": f"Q{quarter} {year}",
+            "prepared_remarks": "AI Ingestion failed. Please check connectivity.",
+            "qa_session": "N/A"
+        }
+
+def summarize_earnings_llm(ticker: str, transcript_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Fast real-time summarization via OpenRouter.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    prompt = f"Summarize these earnings for {ticker} in 3 professional bullets. Focus on guidance and margins: {transcript_data.get('prepared_remarks')}"
+    
+    payload = {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        summary = response.json().get("choices", [{}])[0].get("message", {}).get("content", "Summary unavailable.")
+        
+        # Split into bullets and clean up
+        takeaways = []
+        for line in summary.split("\n"):
+            line = line.strip().replace("**", "").replace("*", "").replace("- ", "").replace("• ", "")
+            if line and len(line) > 10:
+                takeaways.append(line)
+        
+        # Fallback to full summary if splitting failed
+        if not takeaways:
+            takeaways = [summary.replace("**", "").replace("*", "")]
+
+        transcript_data["ai_intelligence"] = {
+            "strategic_takeaways": takeaways,
+            "guidance": "Real-time extraction via Nemotron-3 Ultra.",
+            "sentiment": "Neutral"
+        }
+    except:
+        transcript_data["ai_intelligence"] = {"error": "AI Brain Offline."}
+    
+    return transcript_data

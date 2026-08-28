@@ -14,9 +14,7 @@ interface DataRepository {
     suspend fun getRiskMesh(tickers: List<String>, weights: List<Double>): RiskMeshResponse
     suspend fun getOptimization(tickers: List<String>, views: Map<String, Double>? = null): OptimizeResponse
     suspend fun runDebate(tickers: List<String>): DebateResponse
-    suspend fun getPaytmLoginUrl(): PaytmLoginUrlResponse
-    suspend fun getPaytmHoldings(): PaytmHoldingsResponse
-    suspend fun disconnectPaytm(): PaytmDisconnectResponse
+    suspend fun runConsult(query: String): ConsultResponse
 }
 
 class DefaultDataRepository : DataRepository {
@@ -49,15 +47,7 @@ class DefaultDataRepository : DataRepository {
         return RetrofitInstance.apiService.runDebate(TickerListRequest(tickers))
     }
 
-    override suspend fun getPaytmLoginUrl(): PaytmLoginUrlResponse {
-        return RetrofitInstance.apiService.getPaytmLoginUrl()
-    }
-
-    override suspend fun getPaytmHoldings(): PaytmHoldingsResponse {
-        return RetrofitInstance.apiService.getPaytmHoldings()
-    }
-
-    override suspend fun disconnectPaytm(): PaytmDisconnectResponse {
-        return RetrofitInstance.apiService.disconnectPaytm()
+    override suspend fun runConsult(query: String): ConsultResponse {
+        return RetrofitInstance.apiService.runConsult(ConsultRequest(query))
     }
 }

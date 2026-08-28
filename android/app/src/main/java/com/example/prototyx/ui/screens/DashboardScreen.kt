@@ -1,7 +1,5 @@
 package com.example.prototyx.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,62 +18,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.data.model.MarketIndicatorsResponse
-import com.example.prototyx.data.model.PaytmAsset
 import com.example.prototyx.theme.PrototyxTheme
 import com.example.prototyx.ui.components.*
-import kotlinx.coroutines.launch
 
 @Composable
 fun DashboardScreen(
     repository: DataRepository,
     modifier: Modifier = Modifier
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-    
     var activeTickers by remember { mutableStateOf(listOf("TCS", "RELIANCE", "AAPL", "INFY")) }
     var selectedTicker by remember { mutableStateOf("TCS") }
     var tickerData by remember { mutableStateOf<MarketIndicatorsResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
 
-    // Paytm Session States
-    var paytmConnected by remember { mutableStateOf(false) }
-    var paytmSource by remember { mutableStateOf("Not Connected") }
-    var paytmHoldings by remember { mutableStateOf<List<PaytmAsset>>(emptyList()) }
-    var paytmLoading by remember { mutableStateOf(false) }
-
     val defaultWeights = listOf(30f, 40f, 20f, 10f)
     val defaultColors = listOf(Color(0xFF111111), Color(0xFF787774), Color(0xFFEAEAEA), Color(0xFFE1F3FE))
-    val colorsPalette = listOf(Color(0xFF111111), Color(0xFF787774), Color(0xFFB0BEC5), Color(0xFFEAEAEA), Color(0xFFE1F3FE), Color(0xFFFFCC80))
-
-    // Fetch Paytm holdings function
-    val refreshPaytm = {
-        paytmLoading = true
-        coroutineScope.launch {
-            try {
-                val res = repository.getPaytmHoldings()
-                paytmConnected = res.connected
-                paytmSource = res.source
-                paytmHoldings = res.holdings
-                if (res.holdings.isNotEmpty()) {
-                    activeTickers = res.holdings.map { it.ticker }
-                    if (!activeTickers.contains(selectedTicker)) {
-                        selectedTicker = activeTickers.first()
-                    }
-                }
-            } catch (e: Exception) {
-                // Server offline
-            } finally {
-                paytmLoading = false
-            }
-        }
-    }
-
-    // Initial load
-    LaunchedEffect(Unit) {
-        refreshPaytm()
-    }
 
     LaunchedEffect(selectedTicker) {
         isLoading = true
@@ -103,102 +60,6 @@ fun DashboardScreen(
                 EditorialHeading(text = "Wealth Intel & Portfolio Ops")
                 Spacer(modifier = Modifier.height(8.dp))
                 MetadataLabel(text = "Active Portfolio Tracking & Intelligence")
-            }
-        }
-
-        // Paytm Money OAuth Integration Card
-        item {
-            DoubleBezelCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    EditorialHeading(text = "Broker Connection Desk", modifier = Modifier.weight(1f))
-                    
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (paytmConnected) Color(0xFFE8F5E9) else Color(0xFFECEFF1),
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (paytmConnected) "Paytm Linked" else "Disconnected",
-                            color = if (paytmConnected) Color(0xFF2E7D32) else Color(0xFF546E7A),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                if (paytmLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally), strokeWidth = 2.dp)
-                } else {
-                    Text(
-                        text = if (paytmConnected) "Source: $paytmSource. Live holdings imported securely from Paytm Money API." 
-                               else "Link Paytm Money broker portfolio securely. Secrets are stored strictly on backend server.",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (!paytmConnected) {
-                            Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            val res = repository.getPaytmLoginUrl()
-                                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(res.url))
-                                            context.startActivity(browserIntent)
-                                        } catch (e: Exception) {
-                                            // Handle error
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Connect Paytm")
-                            }
-                            
-                            OutlinedButton(
-                                onClick = { refreshPaytm() },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Refresh Holdings")
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        try {
-                                            repository.disconnectPaytm()
-                                            paytmConnected = false
-                                            paytmHoldings = emptyList()
-                                            activeTickers = listOf("TCS", "RELIANCE", "AAPL", "INFY")
-                                            selectedTicker = "TCS"
-                                        } catch (e: Exception) {
-                                            // Handle error
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Disconnect Broker")
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -255,37 +116,18 @@ fun DashboardScreen(
                 EditorialHeading(text = "Distribution Map")
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                val chartWeights = if (paytmConnected && paytmHoldings.isNotEmpty()) {
-                    paytmHoldings.map { (it.weight * 100).toFloat() }
-                } else {
-                    defaultWeights
-                }
-                
-                val chartColors = if (paytmConnected && paytmHoldings.isNotEmpty()) {
-                    paytmHoldings.indices.map { colorsPalette[it % colorsPalette.size] }
-                } else {
-                    defaultColors
-                }
-
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    PortfolioPieChart(weights = chartWeights, colors = chartColors)
+                    PortfolioPieChart(weights = defaultWeights, colors = defaultColors)
                 }
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                // Legend list
-                val legendItems = if (paytmConnected && paytmHoldings.isNotEmpty()) {
-                    paytmHoldings.mapIndexed { idx, asset ->
-                        "${asset.ticker} (${String.format("%.0f", asset.weight * 100)}%)" to colorsPalette[idx % colorsPalette.size]
-                    }
-                } else {
-                    listOf(
-                        "TCS (30%)" to Color(0xFF111111),
-                        "RELIANCE (40%)" to Color(0xFF787774),
-                        "AAPL (20%)" to Color(0xFFEAEAEA),
-                        "INFY (10%)" to Color(0xFFE1F3FE)
-                    )
-                }
+                val legendItems = listOf(
+                    "TCS (30%)" to Color(0xFF111111),
+                    "RELIANCE (40%)" to Color(0xFF787774),
+                    "AAPL (20%)" to Color(0xFFEAEAEA),
+                    "INFY (10%)" to Color(0xFFE1F3FE)
+                )
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
