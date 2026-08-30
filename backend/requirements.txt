@@ -9,3 +9,8 @@ python-dotenv
 duckduckgo-search
 groq
 earningscall
+sqlmodel
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
