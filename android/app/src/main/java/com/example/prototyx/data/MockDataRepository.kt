@@ -8,11 +8,11 @@ class MockDataRepository : DataRepository {
     override val holdings: Flow<Map<String, Float>> = flow { emit(mapOf("TCS" to 0.30f, "RELIANCE" to 0.40f, "AAPL" to 0.20f, "INFY" to 0.10f)) }
 
     override suspend fun login(request: LoginRequest): AuthResponse {
-        return AuthResponse("mock_token", "bearer", UserProfile(request.email, "Mock User"))
+        return AuthResponse("mock_token", request.email)
     }
 
     override suspend fun register(request: RegisterRequest): AuthResponse {
-        return AuthResponse("mock_token", "bearer", UserProfile(request.email, request.name))
+        return AuthResponse("mock_token", request.email)
     }
 
     override suspend fun syncWithCloud() {

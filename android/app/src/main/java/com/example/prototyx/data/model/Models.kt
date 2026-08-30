@@ -34,9 +34,8 @@ data class RegisterRequest(
 )
 
 data class AuthResponse(
-    @SerializedName("access_token") val accessToken: String,
-    @SerializedName("token_type") val tokenType: String,
-    val user: UserProfile? = null
+    val accessToken: String,
+    val userEmail: String
 )
 
 data class UserProfile(
