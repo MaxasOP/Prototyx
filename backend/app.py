@@ -60,13 +60,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 
 @app.post("/api/auth/register", response_model=AuthResponse)
 def register(request: RegisterRequest, session: Session = Depends(get_session)):
+    # Strip whitespace from email to avoid login issues
+    email = request.email.strip().lower()
+    
     # Check if user exists
-    existing_user = session.exec(select(User).where(User.email == request.email)).first()
+    existing_user = session.exec(select(User).where(User.email == email)).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     new_user = User(
-        email=request.email,
+        email=email,
         hashed_password=get_password_hash(request.password),
         name=request.name
     )
@@ -79,7 +82,8 @@ def register(request: RegisterRequest, session: Session = Depends(get_session)):
 
 @app.post("/api/auth/login", response_model=AuthResponse)
 def login(request: LoginRequest, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.email == request.email)).first()
+    email = request.email.strip().lower()
+    user = session.exec(select(User).where(User.email == email)).first()
     if not user or not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     

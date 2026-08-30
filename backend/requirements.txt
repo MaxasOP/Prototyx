@@ -11,6 +11,7 @@ groq
 earningscall
 sqlmodel
 psycopg2-binary
-passlib[bcrypt]
+passlib
+bcrypt
 python-jose[cryptography]
 python-multipart
