@@ -9,6 +9,15 @@ import retrofit2.http.Query
 
 interface ApiService {
 
+    @POST("api/auth/login")
+    suspend fun login(@Body request: LoginRequest): AuthResponse
+
+    @POST("api/auth/register")
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
+
+    @POST("api/holdings/sync")
+    suspend fun syncHoldings(@Body request: SyncHoldingsRequest): Map<String, Float>
+
     @GET("api/tickers/search")
     suspend fun searchTickers(
         @Query("query") query: String? = null,

@@ -5,7 +5,31 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class MockDataRepository : DataRepository {
-    override val data: Flow<List<String>> = flow { emit(listOf("TCS", "RELIANCE", "AAPL", "INFY")) }
+    override val holdings: Flow<Map<String, Float>> = flow { emit(mapOf("TCS" to 0.30f, "RELIANCE" to 0.40f, "AAPL" to 0.20f, "INFY" to 0.10f)) }
+
+    override suspend fun login(request: LoginRequest): AuthResponse {
+        return AuthResponse("mock_token", "bearer", UserProfile(request.email, "Mock User"))
+    }
+
+    override suspend fun register(request: RegisterRequest): AuthResponse {
+        return AuthResponse("mock_token", "bearer", UserProfile(request.email, request.name))
+    }
+
+    override suspend fun syncWithCloud() {
+        // Mock sync
+    }
+
+    override suspend fun logout() {
+        // Mock logout
+    }
+
+    override suspend fun updateHolding(ticker: String, weight: Float) {
+        // Mock implementation
+    }
+
+    override suspend fun removeHolding(ticker: String) {
+        // Mock implementation
+    }
     
     override suspend fun searchTickers(query: String?, sector: String?): List<TickerSearchResponse> = listOf(
         TickerSearchResponse("TCS", "Tata Consultancy Services", "Technology", "IT Services", "NSE")

@@ -32,8 +32,12 @@ sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: S
 }
 
 @Composable
-fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
-    val backStack = rememberNavBackStack(Main)
+fun MainNavigation(
+    repository: DataRepository,
+    authManager: com.example.prototyx.data.security.AuthManager
+) {
+    val startDestination = if (authManager.getToken() != null) Main else Login
+    val backStack = rememberNavBackStack(startDestination)
     
     val tabs = listOf(
         BottomBarTab.Dashboard,
@@ -45,40 +49,42 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
-            ) {
-                val currentScreen = backStack.lastOrNull() ?: Main
-                tabs.forEach { tab ->
-                    val isSelected = currentScreen::class == tab.route::class
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = {
-                            backStack.clear()
-                            backStack.add(tab.route)
-                        },
-                        icon = { 
-                            Icon(
-                                imageVector = tab.icon, 
-                                contentDescription = tab.title,
-                                modifier = Modifier.size(20.dp),
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            ) 
-                        },
-                        label = { 
-                            Text(
-                                text = tab.title.uppercase(), 
-                                fontSize = 9.sp,
-                                fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
-                                letterSpacing = 0.5.sp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            ) 
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = Color.Transparent
+            val currentScreen = backStack.lastOrNull() ?: Main
+            if (currentScreen::class != Login::class) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp
+                ) {
+                    tabs.forEach { tab ->
+                        val isSelected = currentScreen::class == tab.route::class
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                backStack.clear()
+                                backStack.add(tab.route)
+                            },
+                            icon = { 
+                                Icon(
+                                    imageVector = tab.icon, 
+                                    contentDescription = tab.title,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                ) 
+                            },
+                            label = { 
+                                Text(
+                                    text = tab.title.uppercase(), 
+                                    fontSize = 9.sp,
+                                    fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
+                                    letterSpacing = 0.5.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                ) 
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = Color.Transparent
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -87,8 +93,27 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             entryProvider = entryProvider {
+                entry<Login> {
+                    LoginScreen(
+                        repository = repository,
+                        onLoginSuccess = { token ->
+                            authManager.saveToken(token)
+                            backStack.clear()
+                            backStack.add(Main)
+                        },
+                        modifier = Modifier.padding(innerPadding)
+                    )
+                }
                 entry<Main> {
-                    DashboardScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    DashboardScreen(
+                        repository = repository,
+                        onLogout = {
+                            authManager.clearToken()
+                            backStack.clear()
+                            backStack.add(Login)
+                        },
+                        modifier = Modifier.padding(innerPadding)
+                    )
                 }
                 entry<Optimizer> {
                     OptimizerScreen(repository = repository, modifier = Modifier.padding(innerPadding))
@@ -111,6 +136,9 @@ fun MainNavigation(repository: DataRepository = DefaultDataRepository()) {
 @Composable
 fun MainNavigationPreview() {
     PrototyxTheme {
-        MainNavigation(repository = MockDataRepository())
+        MainNavigation(
+            repository = MockDataRepository(),
+            authManager = com.example.prototyx.data.security.AuthManager(androidx.compose.ui.platform.LocalContext.current)
+        )
     }
 }

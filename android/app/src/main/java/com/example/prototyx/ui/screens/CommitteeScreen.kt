@@ -68,7 +68,10 @@ fun CommitteeScreen(
     ) {
         item(key = "heading") {
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (currentView != CommitteeView.Selection) {
                         IconButton(
                             onClick = { currentView = CommitteeView.Selection },
@@ -82,7 +85,8 @@ fun CommitteeScreen(
                             CommitteeView.Selection -> "Investment Committee"
                             CommitteeView.Consultation -> "Manager Consultation"
                             CommitteeView.Debate -> "Governance Debate"
-                        }
+                        },
+                        modifier = Modifier.weight(1f)
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))

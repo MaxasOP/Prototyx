@@ -21,6 +21,34 @@ data class ConsultRequest(
     val query: String
 )
 
+// --- Auth Models ---
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
+
+data class RegisterRequest(
+    val email: String,
+    val password: String,
+    val name: String? = null
+)
+
+data class AuthResponse(
+    @SerializedName("access_token") val accessToken: String,
+    @SerializedName("token_type") val tokenType: String,
+    val user: UserProfile? = null
+)
+
+data class UserProfile(
+    val email: String,
+    val name: String?
+)
+
+// --- Sync Models ---
+data class SyncHoldingsRequest(
+    val holdings: Map<String, Float>
+)
+
 // --- Response Bodies ---
 data class TickerSearchResponse(
     val ticker: String,

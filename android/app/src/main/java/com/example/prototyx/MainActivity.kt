@@ -12,13 +12,16 @@ import com.example.prototyx.theme.PrototyxTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val app = application as PrototyxApp
+        val repository = app.repository
+        val authManager = app.authManager
         setContent {
             PrototyxTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavigation()
+                    MainNavigation(repository = repository, authManager = authManager)
                 }
             }
         }

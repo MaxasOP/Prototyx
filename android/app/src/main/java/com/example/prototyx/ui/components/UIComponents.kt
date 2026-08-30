@@ -53,7 +53,9 @@ fun EditorialHeading(
         lineHeight = 26.sp,
         letterSpacing = (-0.5).sp,
         color = color,
-        modifier = modifier
+        modifier = modifier,
+        maxLines = 2,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
     )
 }
 
@@ -79,14 +81,16 @@ fun BentoMetric(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        MetadataLabel(text = label)
+    Column(modifier = modifier.padding(end = 8.dp)) {
+        MetadataLabel(text = label, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

@@ -28,14 +28,24 @@ fun RiskMeshScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     
-    // State for Dynamic Holdings
-    var holdings by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    // State for Portfolio Holdings (Source of Truth)
+    val portfolioHoldings by repository.holdings.collectAsState(initial = emptyMap())
+    
+    // Local state for "What-if" analysis (Mesh Tickers and Weights)
+    var meshHoldings by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     var tickerInput by remember { mutableStateOf("") }
     var weightInput by remember { mutableStateOf("") }
 
     var riskMeshResult by remember { mutableStateOf<RiskMeshResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Sync meshHoldings with portfolio once loaded
+    LaunchedEffect(portfolioHoldings) {
+        if (meshHoldings.isEmpty() && portfolioHoldings.isNotEmpty()) {
+            meshHoldings = portfolioHoldings.mapValues { it.value.toDouble() }
+        }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -45,10 +55,16 @@ fun RiskMeshScreen(
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         item(key = "heading") {
-            Column {
-                EditorialHeading(text = "Cross-Asset Risk Mesh")
-                Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "Systemic Exposure & Correlation Analysis")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    EditorialHeading(text = "Cross-Asset Risk Mesh")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MetadataLabel(text = "Systemic Exposure & Correlation Analysis")
+                }
             }
         }
 
@@ -90,16 +106,16 @@ fun RiskMeshScreen(
                             val ticker = tickerInput.trim().uppercase()
                             val weight = weightInput.toDoubleOrNull() ?: 0.0
                             if (ticker.isNotEmpty()) {
-                                val newHoldings = holdings.toMutableMap()
+                                val newHoldings = meshHoldings.toMutableMap()
                                 if (weight > 0) newHoldings[ticker] = weight else newHoldings.remove(ticker)
-                                holdings = newHoldings
+                                meshHoldings = newHoldings
                                 tickerInput = ""
                                 weightInput = ""
                             }
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.05f), contentColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), contentColor = MaterialTheme.colorScheme.onSurface)
                     ) {
                         Text("Add/Update", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
@@ -108,7 +124,7 @@ fun RiskMeshScreen(
                         text = "Analyze Mesh",
                         onClick = {
                             coroutineScope.launch {
-                                if (holdings.isEmpty()) {
+                                if (meshHoldings.isEmpty()) {
                                     errorMessage = "Please add at least one asset."
                                     return@launch
                                 }
@@ -116,7 +132,7 @@ fun RiskMeshScreen(
                                 errorMessage = null
                                 riskMeshResult = null
                                 try {
-                                    riskMeshResult = repository.getRiskMesh(holdings.keys.toList(), holdings.values.toList())
+                                    riskMeshResult = repository.getRiskMesh(meshHoldings.keys.toList(), meshHoldings.values.toList())
                                 } catch (e: Exception) {
                                     errorMessage = "Risk engine connection failure: ${e.message ?: "Unknown error"}"
                                 } finally {
@@ -129,9 +145,9 @@ fun RiskMeshScreen(
                     )
                 }
                 
-                if (holdings.isNotEmpty()) {
+                if (meshHoldings.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    MetadataLabel(text = "Current Basket: ${holdings.keys.joinToString(", ")}")
+                    MetadataLabel(text = "Current Basket: ${meshHoldings.keys.joinToString(", ")}")
                 }
             }
         }

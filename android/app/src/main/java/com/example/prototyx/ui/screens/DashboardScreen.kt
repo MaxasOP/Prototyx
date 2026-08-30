@@ -10,11 +10,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.launch
 import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.data.model.MarketIndicatorsResponse
@@ -24,14 +28,18 @@ import com.example.prototyx.ui.components.*
 @Composable
 fun DashboardScreen(
     repository: DataRepository,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // State for Tickers and their Weights (Portfolio Holdings)
-    var holdings by remember { mutableStateOf(mapOf("TCS" to 0.30f, "RELIANCE" to 0.40f, "AAPL" to 0.20f, "INFY" to 0.10f)) }
-    var selectedTicker by remember { mutableStateOf("TCS") }
+    val holdings by repository.holdings.collectAsState(initial = emptyMap())
+    val coroutineScope = rememberCoroutineScope()
+    var selectedTicker by remember { mutableStateOf("") }
     var tickerData by remember { mutableStateOf<MarketIndicatorsResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
+    var syncError by remember { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
     var searchWeight by remember { mutableStateOf("") }
@@ -58,6 +66,13 @@ fun DashboardScreen(
         }
     }
 
+    // Set initial selected ticker if empty and holdings exist
+    LaunchedEffect(holdings) {
+        if (selectedTicker.isEmpty() && holdings.isNotEmpty()) {
+            selectedTicker = holdings.keys.first()
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -67,10 +82,78 @@ fun DashboardScreen(
     ) {
         // Hero Header
         item(key = "heading") {
-            Column {
-                EditorialHeading(text = "Prototyx")
-                Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "DYNAMIC PORTFOLIO OPS")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    EditorialHeading(text = "Prototyx")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MetadataLabel(text = "DYNAMIC PORTFOLIO OPS")
+                }
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                isSyncing = true
+                                syncError = null
+                                try {
+                                    repository.syncWithCloud()
+                                } catch (e: Exception) {
+                                    syncError = "Sync failed: ${e.message}"
+                                } finally {
+                                    isSyncing = false
+                                }
+                            }
+                        },
+                        enabled = !isSyncing
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Sync with Cloud",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                repository.logout()
+                                onLogout()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (syncError != null) {
+            item {
+                Text(
+                    text = syncError!!,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
         }
 
@@ -113,14 +196,13 @@ fun DashboardScreen(
                         val ticker = searchQuery.trim().uppercase()
                         val weight = searchWeight.toDoubleOrNull()?.toFloat() ?: 0f
                         if (ticker.isNotEmpty()) {
-                            val newHoldings = holdings.toMutableMap()
-                            if (weight > 0) {
-                                newHoldings[ticker] = weight
-                            } else {
-                                newHoldings.remove(ticker)
+                            coroutineScope.launch {
+                                if (weight > 0) {
+                                    repository.updateHolding(ticker, weight)
+                                } else {
+                                    repository.removeHolding(ticker)
+                                }
                             }
-                            // Re-normalize weights to sum to 1.0 if needed, or just keep as is
-                            holdings = newHoldings
                             selectedTicker = ticker
                             searchQuery = ""
                             searchWeight = ""
@@ -303,6 +385,6 @@ fun LegendItem(label: String, color: Color) {
 @Composable
 fun DashboardScreenPreview() {
     PrototyxTheme {
-        DashboardScreen(repository = MockDataRepository())
+        DashboardScreen(repository = MockDataRepository(), onLogout = {})
     }
 }

@@ -27,6 +27,9 @@ fun OptimizerScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     
+    // State for Portfolio (Source of Truth)
+    val portfolioHoldings by repository.holdings.collectAsState(initial = emptyMap())
+
     // State for Dynamic Universe and Views
     var universe by remember { mutableStateOf<List<String>>(emptyList()) }
     var views by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
@@ -38,6 +41,13 @@ fun OptimizerScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Sync universe with portfolio on first load
+    LaunchedEffect(portfolioHoldings) {
+        if (universe.isEmpty() && portfolioHoldings.isNotEmpty()) {
+            universe = portfolioHoldings.keys.toList()
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -47,10 +57,16 @@ fun OptimizerScreen(
     ) {
         // Header
         item(key = "heading") {
-            Column {
-                EditorialHeading(text = "Black-Litterman Strategic Optimization")
-                Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "Advanced Bayesian Portfolio Balancing")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    EditorialHeading(text = "Black-Litterman Strategic Optimization")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MetadataLabel(text = "Advanced Bayesian Portfolio Balancing")
+                }
             }
         }
 
@@ -103,7 +119,7 @@ fun OptimizerScreen(
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.05f), contentColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), contentColor = MaterialTheme.colorScheme.onSurface)
                     ) {
                         Text("Add Asset", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
