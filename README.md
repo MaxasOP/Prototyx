@@ -10,12 +10,7 @@
 [![Room DB](https://img.shields.io/badge/Room-Local--First%20Cache-47A248?style=for-the-badge&logo=sqlite&logoColor=white)](https://developer.android.com/training/data-storage/room)
 [![Deployment](https://img.shields.io/badge/Render-Live%20Backend-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://prototyx.onrender.com)
 
-> **Academic Project Synopsis**: SVKM's NMIMS — Mukesh Patel School of Technology Management & Engineering (MPSTME)  
-> **Course**: Mobile Application Development (MAD) / Mini Project  
-> **Author**: Manas Chauhan ([MANAS.CHAUHAN13@nmims.in](mailto:MANAS.CHAUHAN13@nmims.in))  
-> **Live API Service**: [https://prototyx.onrender.com](https://prototyx.onrender.com)
 
----
 
 ## 📌 Executive Summary
 
@@ -370,5 +365,5 @@ cd Prototyx
 
 ## 📄 License
 
-This project is developed for academic evaluation under SVKM's NMIMS MPSTME.  
+
 Distributed under the **MIT License**. See `LICENSE` for more information.
