@@ -29,7 +29,16 @@ class AuthManager(context: Context) {
         sharedPreferences.edit().remove(KEY_TOKEN).apply()
     }
 
+    fun hasAcceptedDisclaimer(): Boolean {
+        return sharedPreferences.getBoolean(KEY_DISCLAIMER_ACCEPTED, false)
+    }
+
+    fun setAcceptedDisclaimer(accepted: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_DISCLAIMER_ACCEPTED, accepted).apply()
+    }
+
     companion object {
         private const val KEY_TOKEN = "auth_token"
+        private const val KEY_DISCLAIMER_ACCEPTED = "disclaimer_accepted"
     }
 }

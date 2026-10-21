@@ -1,6 +1,7 @@
 package com.example.prototyx.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -191,6 +192,38 @@ fun OptimizerScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    MetadataLabel(text = "Actionable Rebalance Execution", color = Color(0xFF1F6C9F))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val totalHoldingsWeight = portfolioHoldings.values.sum().let { if (it > 0f) it else 1f }
+                    res.weights.forEach { (ticker, targetWeight) ->
+                        val currentWeight = ((portfolioHoldings[ticker] ?: 0f) / totalHoldingsWeight).toDouble()
+                        val delta = targetWeight - currentWeight
+                        val action = when {
+                            delta > 0.02 -> "+${String.format("%.1f", delta * 100)}% BUY"
+                            delta < -0.02 -> "${String.format("%.1f", delta * 100)}% TRIM"
+                            else -> "HOLD"
+                        }
+                        val actionColor = when {
+                            delta > 0.02 -> Color(0xFF2E7D32)
+                            delta < -0.02 -> Color(0xFFD32F2F)
+                            else -> Color.Gray
+                        }
+
+                        RebalanceActionRow(
+                            ticker = ticker,
+                            currentWeight = currentWeight,
+                            targetWeight = targetWeight,
+                            action = action,
+                            actionColor = actionColor
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     res.aiRationale?.let { rationale ->
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
@@ -233,6 +266,54 @@ fun AllocationRow(ticker: String, weight: Double) {
                     .fillMaxHeight()
                     .background(Color.Black, shape = androidx.compose.foundation.shape.CircleShape)
             )
+        }
+    }
+}
+
+@Composable
+fun RebalanceActionRow(
+    ticker: String,
+    currentWeight: Double,
+    targetWeight: Double,
+    action: String,
+    actionColor: Color
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = Color.White
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(text = ticker, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(
+                    text = "Current: ${String.format("%.1f", currentWeight * 100)}% → Target: ${String.format("%.1f", targetWeight * 100)}%",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Surface(
+                color = actionColor.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = action,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp,
+                    color = actionColor
+                )
+            }
         }
     }
 }

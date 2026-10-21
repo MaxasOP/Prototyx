@@ -55,4 +55,29 @@ interface ApiService {
     suspend fun runConsult(
         @Body request: ConsultRequest
     ): ConsultResponse
+
+    @GET("api/market/chart/{ticker}")
+    suspend fun getStockChart(
+        @Path("ticker") ticker: String,
+        @Query("period") period: String = "1M"
+    ): StockChartResponse
+
+    @GET("api/news/sentiment")
+    suspend fun getNewsSentiment(
+        @Query("ticker") ticker: String? = null
+    ): List<NewsSentimentItem>
+
+    @GET("api/screener/search")
+    suspend fun searchScreener(
+        @Query("query") query: String? = null,
+        @Query("riskLevel") riskLevel: String? = null
+    ): List<ScreenerResultItem>
+
+    @POST("api/quant/stress-test")
+    suspend fun runStressTest(
+        @Body request: StressTestRequest
+    ): StressTestResult
+
+    @GET("api/finny/strategy-report")
+    suspend fun getFinnyReport(): FinnyStrategyReport
 }

@@ -3,7 +3,6 @@ package com.example.prototyx.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,13 +10,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
-import com.example.prototyx.theme.PrototyxTheme
 import com.example.prototyx.data.model.RiskMeshResponse
+import com.example.prototyx.data.model.StressTestResult
+import com.example.prototyx.theme.PrototyxTheme
 import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
 
@@ -27,20 +27,18 @@ fun RiskMeshScreen(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    
-    // State for Portfolio Holdings (Source of Truth)
     val portfolioHoldings by repository.holdings.collectAsState(initial = emptyMap())
-    
-    // Local state for "What-if" analysis (Mesh Tickers and Weights)
+
     var meshHoldings by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     var tickerInput by remember { mutableStateOf("") }
     var weightInput by remember { mutableStateOf("") }
 
     var riskMeshResult by remember { mutableStateOf<RiskMeshResponse?>(null) }
+    var stressTestResult by remember { mutableStateOf<StressTestResult?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var isStressLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Sync meshHoldings with portfolio once loaded
     LaunchedEffect(portfolioHoldings) {
         if (meshHoldings.isEmpty() && portfolioHoldings.isNotEmpty()) {
             meshHoldings = portfolioHoldings.mapValues { it.value.toDouble() }
@@ -63,7 +61,100 @@ fun RiskMeshScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     EditorialHeading(text = "Cross-Asset Risk Mesh")
                     Spacer(modifier = Modifier.height(8.dp))
-                    MetadataLabel(text = "Systemic Exposure & Correlation Analysis")
+                    MetadataLabel(text = "Systemic Exposure & Stress Testing Matrix")
+                }
+            }
+        }
+
+        // Stress Testing Simulator Section
+        item(key = "stress_test_card") {
+            DoubleBezelCard {
+                MetadataLabel(text = "FINNY Macro Stress-Testing Simulator", color = Color(0xFF1F6C9F))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Simulate how external macro shocks affect your portfolio Value-at-Risk (VaR) and Drawdown.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val scenarios = listOf(
+                        "rate_hike" to "📈 Fed Rate Hike",
+                        "oil_spike" to "🛢️ Oil Shock",
+                        "tech_selloff" to "💻 Tech Sell-off"
+                    )
+
+                    scenarios.forEach { (id, label) ->
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isStressLoading = true
+                                    val tickers = if (meshHoldings.isNotEmpty()) meshHoldings.keys.toList() else listOf("TCS", "RELIANCE")
+                                    val weights = if (meshHoldings.isNotEmpty()) meshHoldings.values.toList() else listOf(0.5, 0.5)
+                                    stressTestResult = repository.runStressTest(tickers, weights, id)
+                                    isStressLoading = false
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                if (isStressLoading) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                stressTestResult?.let { res ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color.Black.copy(alpha = 0.08f))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "SCENARIO: ${res.scenarioName}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        BentoMetric(label = "Return Shock", value = "${String.format("%.1f", res.portfolioReturnChange * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Stressed VaR", value = "${String.format("%.1f", res.stressedVaR * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Max Drawdown", value = "${String.format("%.1f", res.stressedDrawdown * 100)}%", modifier = Modifier.weight(1f))
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "💡 FINNY Verdict: ${res.plainEnglishVerdict}",
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
@@ -72,7 +163,7 @@ fun RiskMeshScreen(
             DoubleBezelCard {
                 MetadataLabel(text = "Asset Configuration")
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = tickerInput,
@@ -144,7 +235,7 @@ fun RiskMeshScreen(
                         isLoading = isLoading
                     )
                 }
-                
+
                 if (meshHoldings.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     MetadataLabel(text = "Current Basket: ${meshHoldings.keys.joinToString(", ")}")
@@ -163,7 +254,7 @@ fun RiskMeshScreen(
                 DoubleBezelCard {
                     MetadataLabel(text = "Exposure Summary")
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             MetadataLabel(text = "Net Exposure Index")

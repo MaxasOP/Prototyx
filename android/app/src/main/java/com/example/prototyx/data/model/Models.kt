@@ -60,20 +60,20 @@ data class TickerSearchResponse(
 data class MarketIndicatorsResponse(
     val ticker: String,
     val close: Double,
-    @SerializedName("sma_50") val sma50: Double?,
-    @SerializedName("sma_200") val sma200: Double?,
-    val rsi: Double?,
-    val macd: Double?,
-    @SerializedName("macd_signal") val macdSignal: Double?,
-    @SerializedName("macd_hist") val macdHist: Double?,
-    @SerializedName("bb_upper") val bbUpper: Double?,
-    @SerializedName("bb_middle") val bbMiddle: Double?,
-    @SerializedName("bb_lower") val bbLower: Double?,
-    @SerializedName("pe_ratio") val peRatio: Double?,
-    @SerializedName("market_cap") val marketCap: Double?,
-    @SerializedName("52_week_high") val fiftyTwoWeekHigh: Double?,
-    @SerializedName("52_week_low") val fiftyTwoWeekLow: Double?,
-    @SerializedName("dividend_yield") val dividendYield: Double?,
+    @SerializedName("sma_50") val sma50: Double? = null,
+    @SerializedName("sma_200") val sma200: Double? = null,
+    val rsi: Double? = null,
+    val macd: Double? = null,
+    @SerializedName("macd_signal") val macdSignal: Double? = null,
+    @SerializedName("macd_hist") val macdHist: Double? = null,
+    @SerializedName("bb_upper") val bbUpper: Double? = null,
+    @SerializedName("bb_middle") val bbMiddle: Double? = null,
+    @SerializedName("bb_lower") val bbLower: Double? = null,
+    @SerializedName("pe_ratio") val peRatio: Double? = null,
+    @SerializedName("market_cap") val marketCap: Double? = null,
+    @SerializedName("52_week_high") val fiftyTwoWeekHigh: Double? = null,
+    @SerializedName("52_week_low") val fiftyTwoWeekLow: Double? = null,
+    @SerializedName("dividend_yield") val dividendYield: Double? = null,
     @SerializedName("ai_memo") val aiMemo: String? = null
 )
 
@@ -144,3 +144,98 @@ data class ConsultResponse(
     val recommendation: String?,
     @SerializedName("data_summary") val dataSummary: Map<String, Any>?
 )
+
+// --- Dual UX & FINNY Autonomous Agent Models ---
+enum class UserExperienceMode {
+    SIMPLE, PRO
+}
+
+data class PricePoint(
+    val timestamp: String,
+    val close: Float,
+    val volume: Float = 0f,
+    val sma50: Float? = null,
+    val sma200: Float? = null,
+    val rsi: Float? = null
+)
+
+data class CandleStickData(
+    val timestamp: String,
+    val open: Float,
+    val high: Float,
+    val low: Float,
+    val close: Float,
+    val volume: Float
+)
+
+data class StockChartResponse(
+    val ticker: String,
+    val currentPrice: Float,
+    val priceChange: Float,
+    val priceChangePercent: Float,
+    val pricePoints: List<PricePoint>,
+    val candleSticks: List<CandleStickData> = emptyList()
+)
+
+data class NewsSentimentItem(
+    val id: String,
+    val title: String,
+    val source: String,
+    val timestamp: String,
+    val tickers: List<String>,
+    val sentiment: String, // "BULLISH", "NEUTRAL", "BEARISH"
+    val sentimentScore: Float, // -1.0 to 1.0
+    val aiImpactAnalysis: String,
+    val plainEnglishSummary: String
+)
+
+data class ScreenerResultItem(
+    val ticker: String,
+    val name: String,
+    val sector: String,
+    val price: Float,
+    val changePercent: Float,
+    val peRatio: Float,
+    val dividendYield: Float,
+    val rsi: Float,
+    val riskLevel: String, // "SAFE", "BALANCED", "GROWTH"
+    val aiAnalysis: String,
+    val plainEnglishSummary: String
+)
+
+data class StressTestRequest(
+    val tickers: List<String>,
+    val weights: List<Double>,
+    val scenarioId: String
+)
+
+data class StressTestResult(
+    val scenarioName: String,
+    val portfolioReturnChange: Double,
+    val initialVaR: Double,
+    val stressedVaR: Double,
+    val initialDrawdown: Double,
+    val stressedDrawdown: Double,
+    val aiHedgingStrategy: String,
+    val plainEnglishVerdict: String
+)
+
+data class FinnyStrategyReport(
+    val portfolioHealthScore: Int, // 0 to 100
+    val riskStatus: String, // "SAFE", "BALANCED", "ACTION_RECOMMENDED"
+    val keyInsights: List<String>,
+    val suggestedRebalance: Map<String, Double>,
+    val selfLearnedMarketRegime: String,
+    val dailyBriefingSummary: String
+)
+
+data class FinnyPortfolioAlert(
+    val id: String,
+    val title: String,
+    val message: String,
+    val severity: String, // "INFO", "WARNING", "URGENT"
+    val timestamp: String,
+    val recommendedAction: String,
+    val plainEnglishAction: String
+)
+

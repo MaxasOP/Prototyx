@@ -116,4 +116,73 @@ class MockDataRepository : DataRepository {
             "ai_conviction" to 0.89
         )
     )
+
+    override suspend fun getStockChart(ticker: String, period: String): StockChartResponse {
+        val basePrice = if (ticker == "TCS") 4200f else 2900f
+        val points = (1..20).map { day ->
+            PricePoint(
+                timestamp = "Day $day",
+                close = basePrice * (1f + (day * 0.003f)),
+                volume = 25000f,
+                sma50 = basePrice * 0.98f,
+                sma200 = basePrice * 0.95f,
+                rsi = 58f
+            )
+        }
+        return StockChartResponse(ticker, points.last().close, 45f, 1.2f, points)
+    }
+
+    override suspend fun getNewsSentiment(ticker: String?): List<NewsSentimentItem> = listOf(
+        NewsSentimentItem(
+            id = "m1",
+            title = "Tech Leaders Report Surge in Generative AI Enterprise Deals",
+            source = "Financial Express",
+            timestamp = "15 mins ago",
+            tickers = listOf("TCS", "INFY"),
+            sentiment = "BULLISH",
+            sentimentScore = 0.88f,
+            aiImpactAnalysis = "Positive momentum in Q2 bookings.",
+            plainEnglishSummary = "Great news for tech investments! Companies are buying more AI services."
+        )
+    )
+
+    override suspend fun searchScreener(query: String?, riskLevel: String?): List<ScreenerResultItem> = listOf(
+        ScreenerResultItem(
+            ticker = "TCS",
+            name = "Tata Consultancy Services",
+            sector = "Technology",
+            price = 4250.75f,
+            changePercent = 1.45f,
+            peRatio = 28.5f,
+            dividendYield = 2.1f,
+            rsi = 58.2f,
+            riskLevel = "SAFE",
+            aiAnalysis = "High quality cash flows with industry-leading ROE (38%). Safe anchor for core portfolios.",
+            plainEnglishSummary = "Very safe, top-tier company with strong profits and reliable dividends."
+        )
+    )
+
+    override suspend fun runStressTest(tickers: List<String>, weights: List<Double>, scenarioId: String): StressTestResult = StressTestResult(
+        scenarioName = "Federal Reserve Rate Hike (+50 bps)",
+        portfolioReturnChange = -0.042,
+        initialVaR = 0.085,
+        stressedVaR = 0.118,
+        initialDrawdown = -0.062,
+        stressedDrawdown = -0.098,
+        aiHedgingStrategy = "Increase allocation in short-duration treasury cash buffers and defensive dividend payers.",
+        plainEnglishVerdict = "In a rate-hike shock, your portfolio would experience a mild ~4.2% dip. Adding dividend stocks will keep it safe!"
+    )
+
+    override suspend fun getFinnyReport(): FinnyStrategyReport = FinnyStrategyReport(
+        portfolioHealthScore = 88,
+        riskStatus = "SAFE",
+        keyInsights = listOf(
+            "Portfolio is 88% optimized against systematic risk.",
+            "No single stock exceeds 35% weight limit.",
+            "FINNY has detected steady accumulation in Tech & Conglomerate sectors."
+        ),
+        suggestedRebalance = mapOf("TCS" to 0.35, "RELIANCE" to 0.30, "AAPL" to 0.20, "INFY" to 0.15),
+        selfLearnedMarketRegime = "Low Volatility Accumulation Phase",
+        dailyBriefingSummary = "Hello! I am FINNY, your AI portfolio manager. Today your portfolio health is a strong 88/100. Markets are stable, and your tech holdings are benefiting from strong cloud earnings!"
+    )
 }

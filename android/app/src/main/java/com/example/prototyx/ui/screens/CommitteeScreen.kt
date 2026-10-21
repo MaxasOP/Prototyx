@@ -244,9 +244,18 @@ fun CommitteeScreen(
 
             // Display Debate Result
             debateResult?.let { res ->
+                item(key = "debate_consensus_badge") {
+                    ExecutiveConsensusCard(
+                        actionVerdict = "ACCUMULATE CORE ALLOCATION",
+                        badgeColor = Color(0xFF2E7D32),
+                        confidence = 88,
+                        takeaway = "Fundamental and Technical agents agree on growth acceleration across current selections. Risk & Compliance agents enforce a 25% max position limit to contain sector drawdowns."
+                    )
+                }
+
                 item(key = "debate_logs_header") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        MetadataLabel(text = "Committee Debate Logs", color = Color(0xFF1F6C9F))
+                        MetadataLabel(text = "Detailed Committee Debate Logs", color = Color(0xFF1F6C9F))
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), RoundedCornerShape(3.dp)))
                     }
@@ -341,6 +350,72 @@ fun AgentDialogueCard(agent: String?, message: String?) {
             fontFamily = FontFamily.Monospace,
             lineHeight = 18.sp,
             color = Color.Black.copy(alpha = 0.8f)
+        )
+    }
+}
+
+@Composable
+fun ExecutiveConsensusCard(
+    actionVerdict: String,
+    badgeColor: Color,
+    confidence: Int,
+    takeaway: String
+) {
+    DoubleBezelCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MetadataLabel(text = "COMMITTEE EXECUTIVE CONSENSUS", color = Color(0xFF1F6C9F))
+            Surface(
+                color = badgeColor.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = actionVerdict,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp,
+                    color = badgeColor
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$confidence% Agent Alignment",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                MetadataLabel(text = "UNIFIED GOVERNANCE VERDICT")
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(badgeColor, RoundedCornerShape(5.dp))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = takeaway,
+            fontSize = 13.sp,
+            color = Color.Black.copy(alpha = 0.8f),
+            lineHeight = 19.sp
         )
     }
 }
