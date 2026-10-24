@@ -64,9 +64,9 @@ fun OptimizerScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Black-Litterman Strategic Optimization")
+                    EditorialHeading(text = "Portfolio optimizer")
                     Spacer(modifier = Modifier.height(8.dp))
-                    MetadataLabel(text = "Advanced Bayesian Portfolio Balancing")
+                    MetadataLabel(text = "TARGET WEIGHTS FROM MARKET AND INVESTOR VIEWS")
                 }
             }
         }
@@ -74,7 +74,7 @@ fun OptimizerScreen(
         // Configuration (Universal Discovery)
         item(key = "config_card") {
             DoubleBezelCard {
-                MetadataLabel(text = "Universe & Forecasts")
+                MetadataLabel(text = "INVESTMENT UNIVERSE")
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -85,8 +85,8 @@ fun OptimizerScreen(
                         modifier = Modifier.weight(1.5f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
                     OutlinedTextField(
@@ -96,8 +96,8 @@ fun OptimizerScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
                 }
@@ -174,7 +174,7 @@ fun OptimizerScreen(
         optimizationResult?.let { res ->
             item {
                 DoubleBezelCard {
-                    MetadataLabel(text = "Engine Output: ${res.method}")
+                    MetadataLabel(text = res.method)
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -193,10 +193,10 @@ fun OptimizerScreen(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    MetadataLabel(text = "Actionable Rebalance Execution", color = Color(0xFF1F6C9F))
+                    MetadataLabel(text = "REBALANCE")
                     Spacer(modifier = Modifier.height(14.dp))
 
                     val totalHoldingsWeight = portfolioHoldings.values.sum().let { if (it > 0f) it else 1f }
@@ -226,14 +226,14 @@ fun OptimizerScreen(
 
                     res.aiRationale?.let { rationale ->
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(24.dp))
-                        MetadataLabel(text = "Optimization Rationale", color = Color(0xFF1F6C9F))
+                        MetadataLabel(text = "RATIONALE")
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = rationale,
                             fontSize = 13.sp,
-                            color = Color.Black.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 20.sp
                         )
                     }
@@ -245,6 +245,14 @@ fun OptimizerScreen(
 
 @Composable
 fun AllocationRow(ticker: String, weight: Double) {
+    val animatedWeight by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = weight.toFloat().coerceIn(0f, 1f),
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = .82f,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "allocation_$ticker"
+    )
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -258,13 +266,13 @@ fun AllocationRow(ticker: String, weight: Double) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(4.dp)
-                .background(Color.Black.copy(alpha = 0.05f), shape = androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant, shape = androidx.compose.foundation.shape.CircleShape)
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(weight.toFloat().coerceIn(0f, 1f))
+                    .fillMaxWidth(animatedWeight)
                     .fillMaxHeight()
-                    .background(Color.Black, shape = androidx.compose.foundation.shape.CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, shape = androidx.compose.foundation.shape.CircleShape)
             )
         }
     }
@@ -281,9 +289,9 @@ fun RebalanceActionRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp)),
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)),
         shape = RoundedCornerShape(8.dp),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier
@@ -293,7 +301,7 @@ fun RebalanceActionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = ticker, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text(text = ticker, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(
                     text = "Current: ${String.format("%.1f", currentWeight * 100)}% → Target: ${String.format("%.1f", targetWeight * 100)}%",
                     fontSize = 11.sp,

@@ -98,7 +98,7 @@ fun VoiceCoPilotSheet(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Real-Time Committee Voice Intelligence",
+                        text = "Ask about your portfolio",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -196,8 +196,8 @@ fun VoiceCoPilotSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(12.dp))
-                        .border(1.dp, Color.Black.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                         .padding(16.dp)
                 ) {
                     Row(
@@ -206,7 +206,7 @@ fun VoiceCoPilotSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         MetadataLabel(
-                            text = "Executive Consensus: ${voiceManager.targetAsset ?: "PORTFOLIO"}",
+                            text = "Research view · ${voiceManager.targetAsset ?: "PORTFOLIO"}",
                             color = Color(0xFF2E7D32)
                         )
 
@@ -232,7 +232,7 @@ fun VoiceCoPilotSheet(
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 18.sp,
-                        color = Color.Black.copy(alpha = 0.85f)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

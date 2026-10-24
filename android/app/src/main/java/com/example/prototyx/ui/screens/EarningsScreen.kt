@@ -41,9 +41,9 @@ fun EarningsScreen(
     ) {
         item(key = "heading") {
             Column {
-                EditorialHeading(text = "Earnings Intelligence")
+                EditorialHeading(text = "Earnings")
                 Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "AI-Driven Corporate Guidance Analysis")
+                MetadataLabel(text = "MANAGEMENT COMMENTARY AND ANALYST QUESTIONS")
             }
         }
 
@@ -58,15 +58,15 @@ fun EarningsScreen(
                     label = { Text("Ticker (e.g., RELIANCE, TCS)", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     )
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 PrimaryButton(
-                    text = "Analyze Ingestion Pipeline",
+                    text = "Open transcript",
                     onClick = {
                         coroutineScope.launch {
                             isLoading = true
@@ -75,7 +75,7 @@ fun EarningsScreen(
                             try {
                                 transcriptResult = repository.getTranscript(tickerInput.trim().uppercase())
                             } catch (e: Exception) {
-                                errorMessage = "Intelligence Gap: ${e.message ?: "No data found for ${tickerInput.uppercase()}"}"
+                                errorMessage = e.message ?: "No transcript found for ${tickerInput.uppercase()}"
                             } finally {
                                 isLoading = false
                             }
@@ -89,7 +89,7 @@ fun EarningsScreen(
 
         errorMessage?.let { msg ->
             item(key = "error") {
-                Text(msg, color = Color.Red, fontSize = 14.sp)
+                StatusMessage(msg, isError = true)
             }
         }
 
@@ -119,13 +119,13 @@ fun EarningsScreen(
                         text = res.preparedRemarks,
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
-                        color = Color.Black.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             item(key = "qa_header") {
-                MetadataLabel(text = "Analyst Q&A Synthesis")
+                MetadataLabel(text = "Analyst Q&A")
             }
 
             item(key = "qa_content") {
@@ -134,7 +134,7 @@ fun EarningsScreen(
                         text = res.qaSession,
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
-                        color = Color.Black.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

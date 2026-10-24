@@ -24,13 +24,13 @@ fun FinancialDisclaimerDialog(
         text = {
             Column {
                 Text(
-                    text = "Welcome to Prototyx AI Financial Terminal.",
+                    text = "Welcome to Prototyx.",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "All portfolio optimization models, multi-agent AI debates, risk mesh calculations, and FINNY Virtual Agent recommendations are generated for informational and educational purposes only and do NOT constitute financial, investment, or legal advice.",
+                    text = "Portfolio models, research views, risk calculations and generated summaries are for informational and educational use only. They are not financial, investment or legal advice.",
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

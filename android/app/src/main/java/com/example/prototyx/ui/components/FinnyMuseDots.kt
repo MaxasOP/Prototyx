@@ -15,6 +15,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.prototyx.theme.Amber
+import com.example.prototyx.theme.Coral
+import com.example.prototyx.theme.Mint
+import com.example.prototyx.theme.Cyan
 
 enum class FinnyState {
     IDLE, LISTENING, THINKING, SPEAKING, SAFEGUARDING
@@ -31,11 +35,11 @@ fun FinnyMuseDots(
 
     // Dynamic color depending on FINNY's active state
     val activeColor = when (state) {
-        FinnyState.IDLE -> Color(0xFF4CAF50) // Emerald Green
-        FinnyState.LISTENING -> Color(0xFFE53935) // Red Pulse
-        FinnyState.THINKING -> Color(0xFF2196F3) // Bright Blue Wave
-        FinnyState.SPEAKING -> Color(0xFF9C27B0) // Purple Speech Wave
-        FinnyState.SAFEGUARDING -> Color(0xFFFF9800) // Gold Safeguard
+        FinnyState.IDLE -> Mint
+        FinnyState.LISTENING -> Coral
+        FinnyState.THINKING -> Cyan
+        FinnyState.SPEAKING -> Mint
+        FinnyState.SAFEGUARDING -> Amber
     }
 
     // 4 Animated Muse Dots with staggered phase shifts
@@ -83,10 +87,10 @@ fun FinnyVirtualAgentCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FinnyMuseDots(state = state, dotSize = 7.dp)
+                PulsingSignal(color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "FINNY VIRTUAL AGENT",
+                    text = "DAILY BRIEF",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.sp,
@@ -98,9 +102,9 @@ fun FinnyVirtualAgentCard(
                 modifier = Modifier
                     .background(
                         color = when {
-                            healthScore >= 80 -> Color(0xFF2E7D32)
-                            healthScore >= 60 -> Color(0xFFFF8F00)
-                            else -> Color(0xFFC62828)
+                            healthScore >= 80 -> Mint.copy(alpha = .12f)
+                            healthScore >= 60 -> Amber.copy(alpha = .12f)
+                            else -> Coral.copy(alpha = .12f)
                         },
                         shape = CircleShape
                     )
@@ -110,7 +114,11 @@ fun FinnyVirtualAgentCard(
                     text = "PORTFOLIO HEALTH $healthScore%",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = when {
+                        healthScore >= 80 -> Mint
+                        healthScore >= 60 -> Amber
+                        else -> Coral
+                    }
                 )
             }
         }
@@ -128,7 +136,7 @@ fun FinnyVirtualAgentCard(
         Spacer(modifier = Modifier.height(14.dp))
 
         PrimaryButton(
-            text = "Ask FINNY Anything",
+            text = "Ask about this brief",
             onClick = onVoiceTap,
             modifier = Modifier.fillMaxWidth()
         )

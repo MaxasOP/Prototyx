@@ -73,6 +73,15 @@ class VoiceAssistantManager(
     }
 
     fun startListening() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            statusMessage = "Microphone permission required. Tap mic again after granting permission."
+            return
+        }
+
         if (speechRecognizer == null) {
             initSpeechRecognizer()
         }

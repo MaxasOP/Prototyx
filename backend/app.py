@@ -1,9 +1,9 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import os
 
 from database import init_db, get_session
@@ -60,10 +60,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 
 @app.post("/api/auth/register", response_model=AuthResponse)
 def register(request: RegisterRequest, session: Session = Depends(get_session)):
-    # Strip whitespace from email to avoid login issues
     email = request.email.strip().lower()
-    
-    # Check if user exists
     existing_user = session.exec(select(User).where(User.email == email)).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -98,10 +95,6 @@ def sync_holdings(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    # This is a merge-sync logic:
-    # 1. Update/Insert local holdings sent by client
-    # 2. Return all holdings for this user as truth
-    
     for ticker, weight in request.holdings.items():
         existing_holding = session.exec(
             select(Holding).where(Holding.user_id == current_user.id, Holding.ticker == ticker)
@@ -118,21 +111,45 @@ def sync_holdings(
                 session.add(new_holding)
     
     session.commit()
-    
-    # Refresh to get all
     all_holdings = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
     return {h.ticker: h.weight for h in all_holdings}
 
-# --- Market & Intelligence (Wrapped existing logic) ---
+# --- Market & Live Intelligence ---
 
-def get_indicators_local(ticker: str):
-    from data.market_data import get_latest_metrics
-    return get_latest_metrics(ticker)
+@app.get("/api/tickers/search")
+def search_tickers(query: Optional[str] = None, sector: Optional[str] = None):
+    from data.screener_service import search_tickers_catalog
+    return search_tickers_catalog(query, sector)
 
 @app.get("/api/market/indicators/{ticker}")
 def get_indicators(ticker: str):
+    from data.market_data import get_latest_metrics
     try:
-        return get_indicators_local(ticker)
+        return get_latest_metrics(ticker)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/market/chart/{ticker}")
+def get_stock_chart(ticker: str, period: str = "1M"):
+    from data.market_data import get_stock_chart as fetch_chart
+    try:
+        return fetch_chart(ticker, period)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/news/sentiment")
+def get_news_sentiment(ticker: Optional[str] = None):
+    from data.news_service import fetch_live_news_sentiment
+    try:
+        return fetch_live_news_sentiment(ticker)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/screener/search")
+def search_screener(query: Optional[str] = None, riskLevel: Optional[str] = None):
+    from data.screener_service import search_screener_items
+    try:
+        return search_screener_items(query, riskLevel)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -143,6 +160,8 @@ def get_transcript(ticker: str, year: int = 2026, quarter: int = 3):
         return get_earnings_transcript(ticker, year, quarter)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Quantitative & Risk Engines ---
 
 @app.post("/api/quant/risk-mesh")
 def get_risk_mesh(request: RiskMeshRequest):
@@ -159,6 +178,27 @@ def get_optimization(request: OptimizeRequest):
         return optimize_portfolio_mvo(request.tickers, request.views)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/quant/stress-test")
+def run_stress_test(request: Dict[str, Any]):
+    from data.screener_service import calculate_macro_stress_test
+    try:
+        tickers = request.get("tickers", [])
+        weights = request.get("weights", [])
+        scenario = request.get("scenarioId", "rate_hike")
+        return calculate_macro_stress_test(tickers, weights, scenario)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/finny/strategy-report")
+def get_finny_report():
+    from data.screener_service import get_finny_strategy_report
+    try:
+        return get_finny_strategy_report()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- AI Agents & Committee ---
 
 @app.post("/api/agents/debate")
 def run_debate(request: TickerListRequest):
@@ -178,7 +218,7 @@ async def run_consult(request: ConsultRequest):
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "secured": True}
+    return {"status": "online", "secured": True, "version": "2.1.0"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

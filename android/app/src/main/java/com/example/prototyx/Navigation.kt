@@ -1,6 +1,7 @@
 package com.example.prototyx
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.theme.PrototyxTheme
+import com.example.prototyx.theme.Signal
 import com.example.prototyx.ui.components.FinnyMuseDots
 import com.example.prototyx.ui.components.FinnyState
 import com.example.prototyx.ui.screens.*
@@ -42,11 +44,11 @@ import com.example.prototyx.ui.voice.VoiceAssistantManager
 import com.example.prototyx.ui.voice.VoiceCoPilotSheet
 
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
-    object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Terminal")
+    object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Portfolio")
     object ScreenerTab : BottomBarTab(Screener, Icons.Outlined.Search, "Screener")
     object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Settings, "Optimize")
-    object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk Mesh")
-    object Debate : BottomBarTab(Committee, Icons.AutoMirrored.Outlined.List, "Committee")
+    object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk")
+    object Debate : BottomBarTab(Committee, Icons.AutoMirrored.Outlined.List, "Research")
     object Transcripts : BottomBarTab(Earnings, Icons.Outlined.AccountBox, "Earnings")
 }
 
@@ -80,15 +82,36 @@ fun MainNavigation(
 
     val currentScreen = backStack.lastOrNull() ?: Main
 
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showVoiceSheet = true
+        } else {
+            showVoiceSheet = true
+        }
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             if (currentScreen::class != Login::class) {
                 FloatingActionButton(
-                    onClick = { showVoiceSheet = true },
-                    containerColor = Color(0xFF111111),
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                    onClick = {
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.RECORD_AUDIO
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            showVoiceSheet = true
+                        } else {
+                            permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(18.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(0.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -118,8 +141,12 @@ fun MainNavigation(
         bottomBar = {
             if (currentScreen::class != Login::class) {
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 1.dp
+                    modifier = Modifier.border(
+                        1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f),
+                        RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                    ),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .98f),
+                    tonalElevation = 0.dp
                 ) {
                     tabs.forEach { tab ->
                         val isSelected = currentScreen::class == tab.route::class
@@ -134,20 +161,23 @@ fun MainNavigation(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
                                     modifier = Modifier.size(20.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
                                 )
                             },
                             label = {
                                 Text(
                                     text = tab.title.uppercase(),
                                     fontSize = 8.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    letterSpacing = 0.3.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    letterSpacing = 0.5.sp,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
                             },
+                            alwaysShowLabel = false,
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent
+                                indicatorColor = Signal.copy(alpha = .12f),
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary
                             )
                         )
                     }

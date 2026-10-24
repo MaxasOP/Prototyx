@@ -41,10 +41,10 @@ fun ScreenerScreen(
     }
 
     val presetQueries = listOf(
-        "🟢 Safe Dividend Champions",
-        "🚀 High Growth Tech",
-        "💎 Undervalued Bluechips",
-        "⚡ Low RSI Momentum Breakouts"
+        "Dividend quality",
+        "High growth technology",
+        "Undervalued large caps",
+        "Low RSI momentum"
     )
 
     Column(
@@ -52,8 +52,8 @@ fun ScreenerScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        EditorialHeading(text = "AI Stock Screener")
-        MetadataLabel(text = "NATURAL LANGUAGE & QUANTITATIVE DISCOVERY")
+        EditorialHeading(text = "Equity screen")
+        MetadataLabel(text = "SEARCH BY COMPANY, METRIC OR INVESTMENT STYLE")
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -121,9 +121,9 @@ fun ScreenerResultCard(
     userMode: UserExperienceMode
 ) {
     val (riskColor, riskText) = when (item.riskLevel.uppercase()) {
-        "SAFE" -> Color(0xFF2E7D32) to "🟢 SAFE ANCHOR"
-        "BALANCED" -> Color(0xFFFF8F00) to "🟡 BALANCED"
-        else -> Color(0xFFC62828) to "🔴 HIGH GROWTH"
+        "SAFE" -> MaterialTheme.colorScheme.tertiary to "LOW RISK"
+        "BALANCED" -> com.example.prototyx.theme.Amber to "BALANCED"
+        else -> MaterialTheme.colorScheme.error to "HIGH RISK"
     }
 
     DoubleBezelCard {
@@ -140,10 +140,10 @@ fun ScreenerResultCard(
 
                 Box(
                     modifier = Modifier
-                        .background(riskColor, CircleShape)
+                        .background(riskColor.copy(alpha = .12f), CircleShape)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Text(text = riskText, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = riskText, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = riskColor)
                 }
             }
 

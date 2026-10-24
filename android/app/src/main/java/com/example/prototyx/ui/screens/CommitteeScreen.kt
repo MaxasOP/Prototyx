@@ -82,31 +82,31 @@ fun CommitteeScreen(
                     }
                     EditorialHeading(
                         text = when (currentView) {
-                            CommitteeView.Selection -> "Investment Committee"
-                            CommitteeView.Consultation -> "Manager Consultation"
-                            CommitteeView.Debate -> "Governance Debate"
+                            CommitteeView.Selection -> "Research desk"
+                            CommitteeView.Consultation -> "Ask research"
+                            CommitteeView.Debate -> "Compare views"
                         },
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "Professional Consensus & AI Analysis")
+                MetadataLabel(text = "MULTI-DISCIPLINE INVESTMENT RESEARCH")
             }
         }
 
         if (currentView == CommitteeView.Selection) {
             item(key = "tile_consult") {
                 SelectionTile(
-                    title = "Manager Consultation",
-                    description = "Connect directly with our AI Orchestrator to get personalized investment advice. Ask complex natural language questions and receive a synthesized verdict from multiple specialized worker agents.",
+                    title = "Research a thesis",
+                    description = "Test an investment question against fundamental, technical and portfolio-risk perspectives.",
                     onClick = { currentView = CommitteeView.Consultation }
                 )
             }
 
             item(key = "tile_debate") {
                 SelectionTile(
-                    title = "Governance Debate Pool",
-                    description = "Initiate a structured deep-dive consensus meeting for specific assets. Watch Fundamental, Technical, and Compliance agents debate pros/cons to reach an implied forward view for your portfolio.",
+                    title = "Compare securities",
+                    description = "Review competing evidence and implied return assumptions for a focused list of holdings.",
                     onClick = { currentView = CommitteeView.Debate }
                 )
             }
@@ -116,7 +116,7 @@ fun CommitteeScreen(
         if (currentView == CommitteeView.Consultation) {
             item(key = "consult_input") {
                 DoubleBezelCard {
-                    MetadataLabel(text = "Consultation Parameters", color = Color(0xFF1F6C9F))
+                    MetadataLabel(text = "RESEARCH QUESTION")
                     Spacer(modifier = Modifier.height(24.dp))
 
                     OutlinedTextField(
@@ -125,15 +125,15 @@ fun CommitteeScreen(
                         label = { Text("Your Investment Thesis or Question (e.g., Outlook for Tech in Q4?)", fontSize = 12.sp) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     PrimaryButton(
-                        text = "Launch Manager Orchestration",
+                        text = "Review thesis",
                         onClick = {
                             coroutineScope.launch {
                                 isLoadingConsult = true
@@ -143,7 +143,7 @@ fun CommitteeScreen(
                                 try {
                                     consultResult = repository.runConsult(userQuery)
                                 } catch (e: Exception) {
-                                    errorMessage = "Orchestration failed: ${e.message ?: "Check backend/Groq status"}"
+                                    errorMessage = e.message ?: "Research service unavailable"
                                 } finally {
                                     isLoadingConsult = false
                                 }
@@ -157,7 +157,7 @@ fun CommitteeScreen(
 
             errorMessage?.let { msg ->
                 item(key = "error_message_consult") {
-                    Text(msg, color = Color.Red, fontSize = 14.sp)
+                    StatusMessage(msg, isError = true)
                 }
             }
 
@@ -166,7 +166,7 @@ fun CommitteeScreen(
                 item(key = "consult_verdict") {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            MetadataLabel(text = "Manager Verdict: ${res.asset ?: "N/A"}", color = Color(0xFF1F6C9F))
+                            MetadataLabel(text = "VIEW · ${res.asset ?: "N/A"}")
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), RoundedCornerShape(3.dp)))
                         }
@@ -175,8 +175,8 @@ fun CommitteeScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                                .background(Color.White)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(20.dp)
                         ) {
                             Text(
@@ -184,7 +184,7 @@ fun CommitteeScreen(
                                 fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
                                 lineHeight = 18.sp,
-                                color = Color.Black.copy(alpha = 0.8f)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -196,7 +196,7 @@ fun CommitteeScreen(
         if (currentView == CommitteeView.Debate) {
             item(key = "debate_input") {
                 DoubleBezelCard {
-                    MetadataLabel(text = "Debate Pool Parameters")
+                    MetadataLabel(text = "SECURITIES")
                     Spacer(modifier = Modifier.height(24.dp))
 
                     OutlinedTextField(
@@ -205,15 +205,15 @@ fun CommitteeScreen(
                         label = { Text("Tickers to Analyze (e.g., RELIANCE, TCS)", fontSize = 12.sp) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     PrimaryButton(
-                        text = "Run Committee Debate",
+                        text = "Compare evidence",
                         onClick = {
                             coroutineScope.launch {
                                 isLoadingDebate = true
@@ -224,7 +224,7 @@ fun CommitteeScreen(
                                     val tickers = inputTickers.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
                                     debateResult = repository.runDebate(tickers)
                                 } catch (e: Exception) {
-                                    errorMessage = "Orchestration failed: ${e.message ?: "Verify agent server status"}"
+                                    errorMessage = e.message ?: "Research service unavailable"
                                 } finally {
                                     isLoadingDebate = false
                                 }
@@ -238,7 +238,7 @@ fun CommitteeScreen(
 
             errorMessage?.let { msg ->
                 item(key = "error_message_debate") {
-                    Text(msg, color = Color.Red, fontSize = 14.sp)
+                    StatusMessage(msg, isError = true)
                 }
             }
 
@@ -255,7 +255,7 @@ fun CommitteeScreen(
 
                 item(key = "debate_logs_header") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        MetadataLabel(text = "Detailed Committee Debate Logs", color = Color(0xFF1F6C9F))
+                        MetadataLabel(text = "RESEARCH NOTES")
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), RoundedCornerShape(3.dp)))
                     }
@@ -275,7 +275,7 @@ fun CommitteeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(SurfaceWhite, RoundedCornerShape(8.dp))
-                            .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -284,7 +284,7 @@ fun CommitteeScreen(
                         Text(
                             text = formattedView,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 14.sp
                         )
                     }
@@ -311,7 +311,7 @@ fun SelectionTile(
             Text(
                 text = description,
                 fontSize = 13.sp,
-                color = Color.Black.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp
             )
             Spacer(modifier = Modifier.height(20.dp))
@@ -335,7 +335,7 @@ fun AgentDialogueCard(agent: String?, message: String?) {
         modifier = Modifier
             .fillMaxWidth()
             .background(SurfaceWhite, RoundedCornerShape(12.dp))
-            .border(1.dp, Color.Black.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -349,7 +349,7 @@ fun AgentDialogueCard(agent: String?, message: String?) {
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace,
             lineHeight = 18.sp,
-            color = Color.Black.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -367,7 +367,7 @@ fun ExecutiveConsensusCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MetadataLabel(text = "COMMITTEE EXECUTIVE CONSENSUS", color = Color(0xFF1F6C9F))
+            MetadataLabel(text = "HOUSE VIEW")
             Surface(
                 color = badgeColor.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(16.dp)
@@ -391,13 +391,13 @@ fun ExecutiveConsensusCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "$confidence% Agent Alignment",
+                    text = "$confidence% agreement",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                MetadataLabel(text = "UNIFIED GOVERNANCE VERDICT")
+                MetadataLabel(text = "CROSS-DISCIPLINE CONFIDENCE")
             }
 
             Box(
@@ -408,13 +408,13 @@ fun ExecutiveConsensusCard(
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = takeaway,
             fontSize = 13.sp,
-            color = Color.Black.copy(alpha = 0.8f),
+            color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 19.sp
         )
     }

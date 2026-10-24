@@ -26,7 +26,9 @@ abstract class PrototyxDatabase : RoomDatabase() {
                     context.applicationContext,
                     PrototyxDatabase::class.java,
                     "prototyx_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration(true)
+                    .build()
                 INSTANCE = instance
                 instance
             }

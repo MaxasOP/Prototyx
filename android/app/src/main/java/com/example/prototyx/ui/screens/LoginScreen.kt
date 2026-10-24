@@ -45,7 +45,7 @@ fun LoginScreen(
         ) {
             EditorialHeading(text = "Prototyx")
             Spacer(modifier = Modifier.height(8.dp))
-            MetadataLabel(text = "Wealth Intelligence Platform")
+            MetadataLabel(text = "PRIVATE WEALTH OPERATING SYSTEM")
             
             Spacer(modifier = Modifier.height(64.dp))
             

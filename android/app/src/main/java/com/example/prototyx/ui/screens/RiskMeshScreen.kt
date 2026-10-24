@@ -59,9 +59,9 @@ fun RiskMeshScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Cross-Asset Risk Mesh")
+                    EditorialHeading(text = "Portfolio risk")
                     Spacer(modifier = Modifier.height(8.dp))
-                    MetadataLabel(text = "Systemic Exposure & Stress Testing Matrix")
+                    MetadataLabel(text = "EXPOSURE, CORRELATION AND DOWNSIDE SCENARIOS")
                 }
             }
         }
@@ -69,10 +69,10 @@ fun RiskMeshScreen(
         // Stress Testing Simulator Section
         item(key = "stress_test_card") {
             DoubleBezelCard {
-                MetadataLabel(text = "FINNY Macro Stress-Testing Simulator", color = Color(0xFF1F6C9F))
+                MetadataLabel(text = "SCENARIO ANALYSIS")
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Simulate how external macro shocks affect your portfolio Value-at-Risk (VaR) and Drawdown.",
+                    text = "Estimate how macro shocks may affect value at risk and drawdown.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -120,7 +120,7 @@ fun RiskMeshScreen(
 
                 stressTestResult?.let { res ->
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.Black.copy(alpha = 0.08f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
@@ -172,8 +172,8 @@ fun RiskMeshScreen(
                         modifier = Modifier.weight(1.5f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
                     OutlinedTextField(
@@ -183,8 +183,8 @@ fun RiskMeshScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Black,
-                            unfocusedBorderColor = Color.Black.copy(alpha = 0.1f)
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
                 }
@@ -212,7 +212,7 @@ fun RiskMeshScreen(
                     }
 
                     PrimaryButton(
-                        text = "Analyze Mesh",
+                        text = "Calculate exposure",
                         onClick = {
                             coroutineScope.launch {
                                 if (meshHoldings.isEmpty()) {
@@ -245,7 +245,7 @@ fun RiskMeshScreen(
 
         errorMessage?.let { error ->
             item(key = "error") {
-                Text(text = error, color = Color.Red, fontSize = 12.sp)
+                StatusMessage(error, isError = true)
             }
         }
 
@@ -270,14 +270,14 @@ fun RiskMeshScreen(
 
                     res.aiRiskAudit?.let { audit ->
                         Spacer(modifier = Modifier.height(24.dp))
-                        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(24.dp))
-                        MetadataLabel(text = "Defense Strategy", color = Color(0xFF9F2F2D))
+                        MetadataLabel(text = "RISK RESPONSE", color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = audit,
                             fontSize = 13.sp,
-                            color = Color.Black.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 20.sp
                         )
                     }

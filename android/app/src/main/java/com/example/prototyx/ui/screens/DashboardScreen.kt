@@ -28,6 +28,8 @@ import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.data.model.*
 import com.example.prototyx.theme.PrototyxTheme
+import com.example.prototyx.theme.Mint
+import com.example.prototyx.theme.Coral
 import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
 
@@ -101,7 +103,7 @@ fun DashboardScreen(
                 tickerData = repository.getIndicators(selectedTicker)
                 chartData = repository.getStockChart(selectedTicker)
             } catch (e: Exception) {
-                searchError = "Intelligence extraction failed for $selectedTicker: ${e.message ?: "Unknown error"}"
+                searchError = "Could not load $selectedTicker: ${e.message ?: "Unknown error"}"
             } finally {
                 isLoading = false
             }
@@ -116,15 +118,15 @@ fun DashboardScreen(
 
     val demoBaskets = remember {
         listOf(
-            PresetBasket("Tech Titans", "🚀", "Growth Conviction", mapOf("NVDA" to 0.35f, "AAPL" to 0.35f, "MSFT" to 0.30f)),
-            PresetBasket("Balanced Core", "⚖️", "Indian Bluechips", mapOf("RELIANCE" to 0.40f, "TCS" to 0.30f, "HDFCBANK" to 0.30f)),
-            PresetBasket("Defensive Yield", "🛡️", "Low Volatility", mapOf("ITC" to 0.40f, "HINDUNILVR" to 0.35f, "TCS" to 0.25f))
+            PresetBasket("Technology", "", "Growth", mapOf("NVDA" to 0.35f, "AAPL" to 0.35f, "MSFT" to 0.30f)),
+            PresetBasket("Core India", "", "Balanced", mapOf("RELIANCE" to 0.40f, "TCS" to 0.30f, "HDFCBANK" to 0.30f)),
+            PresetBasket("Defensive", "", "Income", mapOf("ITC" to 0.40f, "HINDUNILVR" to 0.35f, "TCS" to 0.25f))
         )
     }
 
     val healthReport = remember(holdings) {
         if (holdings.isEmpty()) {
-            PortfolioHealthReport(0, "EMPTY PORTFOLIO", Color.Gray, "Select a 1-tap demo preset or discover assets below to generate a health audit.")
+            PortfolioHealthReport(0, "NO HOLDINGS", Color.Gray, "Add an allocation below or begin with a model portfolio.")
         } else {
             val totalAssets = holdings.size
             val totalWeight = holdings.values.sum()
@@ -142,17 +144,17 @@ fun DashboardScreen(
             val (status, color, diagnosis) = when {
                 score >= 80 -> Triple(
                     "ROBUST ALLOCATION",
-                    Color(0xFF2E7D32),
+                    Mint,
                     "Portfolio is resilient across $totalAssets holdings. No single stock exceeds 45% capital allocation."
                 )
                 score >= 60 -> Triple(
                     "MODERATE CONCENTRATION",
-                    Color(0xFFF57C00),
+                    com.example.prototyx.theme.Amber,
                     "Top holding represents ${(maxWeight * 100).toInt()}% of portfolio. Rebalance recommended to limit sector drawdown."
                 )
                 else -> Triple(
                     "HIGH VULNERABILITY",
-                    Color(0xFFD32F2F),
+                    Coral,
                     "Elevated single-asset concentration (${(maxWeight * 100).toInt()}%). Add defensive counterweights or hedge exposure."
                 )
             }
@@ -164,25 +166,28 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {
         // Hero Header
         item(key = "heading") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+            Box(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Prototyx")
+                MarketAtmosphere(
+                    modifier = Modifier.fillMaxWidth(.64f).height(112.dp).align(Alignment.BottomEnd)
+                )
+                Column(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(.72f)) {
+                    MetadataLabel(text = "PROTOTYX · PRIVATE WEALTH")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Portfolio", style = MaterialTheme.typography.headlineLarge)
                     Spacer(modifier = Modifier.height(4.dp))
-                    MetadataLabel(text = "DYNAMIC PORTFOLIO OPS")
+                    Text("Allocation, risk and relevant market context", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.align(Alignment.TopEnd)
                 ) {
                     IconButton(
                         onClick = {
@@ -256,8 +261,8 @@ fun DashboardScreen(
         // Quick-Test Baskets
         item(key = "presets_row") {
             Column {
-                MetadataLabel(text = "1-Tap Quick-Test Portfolios", color = Color(0xFF1F6C9F))
-                Spacer(modifier = Modifier.height(12.dp))
+                SectionHeader(title = "Model portfolios", supportingText = "Replace the current allocation with a reference strategy")
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -308,7 +313,7 @@ fun DashboardScreen(
         // Search & Discovery
         item(key = "search_card") {
             DoubleBezelCard {
-                MetadataLabel(text = "Asset Discovery & Allocation")
+                SectionHeader(title = "Edit allocation", supportingText = "Set a decimal weight, or enter zero to remove")
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -339,7 +344,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 PrimaryButton(
-                    text = "Update Portfolio Mesh",
+                    text = "Apply allocation",
                     onClick = {
                         val ticker = searchQuery.trim().uppercase()
                         val weight = searchWeight.toDoubleOrNull()?.toFloat() ?: 0f
@@ -364,7 +369,7 @@ fun DashboardScreen(
         // News Sentiment Stream
         if (newsFeed.isNotEmpty()) {
             item(key = "news_stream_header") {
-                MetadataLabel(text = "FINNY Live Market Intelligence Feed", color = Color(0xFF1F6C9F))
+                SectionHeader(title = "Portfolio news", supportingText = "Developments that may affect current holdings")
             }
             items(newsFeed) { news ->
                 NewsSentimentCard(item = news, userMode = userMode)
@@ -392,7 +397,7 @@ fun PresetBasketChip(
     Surface(
         modifier = Modifier
             .clickable { onClick() }
-            .border(1.dp, Color.Black.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
@@ -400,8 +405,6 @@ fun PresetBasketChip(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = basket.icon, fontSize = 16.sp)
-            Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
                     text = basket.title,
@@ -427,7 +430,7 @@ fun PortfolioHealthCard(report: PortfolioHealthReport) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            EditorialHeading(text = "Portfolio Health Meter")
+            SectionHeader(title = "Portfolio resilience")
             Surface(
                 color = report.statusColor.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(16.dp)
@@ -458,7 +461,7 @@ fun PortfolioHealthCard(report: PortfolioHealthReport) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = " / 100",
+                        text = "/100",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -469,22 +472,11 @@ fun PortfolioHealthCard(report: PortfolioHealthReport) {
                 MetadataLabel(text = "STRESS & RESILIENCE SCORE")
             }
 
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .background(report.statusColor.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(report.statusColor, CircleShape)
-                )
-            }
+            AnimatedScoreRing(score = report.score, color = report.statusColor)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = Color.Black.copy(alpha = 0.05f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(

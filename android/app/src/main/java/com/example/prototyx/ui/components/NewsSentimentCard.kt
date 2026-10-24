@@ -23,9 +23,9 @@ fun NewsSentimentCard(
     userMode: UserExperienceMode = UserExperienceMode.PRO
 ) {
     val (badgeBg, badgeText) = when (item.sentiment.uppercase()) {
-        "BULLISH" -> Color(0xFF2E7D32) to "🚀 BULLISH"
-        "BEARISH" -> Color(0xFFC62828) to "🔻 BEARISH"
-        else -> Color(0xFF1565C0) to "⚖️ NEUTRAL"
+        "BULLISH" -> MaterialTheme.colorScheme.tertiary to "POSITIVE"
+        "BEARISH" -> MaterialTheme.colorScheme.error to "NEGATIVE"
+        else -> MaterialTheme.colorScheme.secondary to "NEUTRAL"
     }
 
     DoubleBezelCard(modifier = modifier) {
@@ -55,14 +55,14 @@ fun NewsSentimentCard(
 
                 Box(
                     modifier = Modifier
-                        .background(badgeBg, CircleShape)
+                        .background(badgeBg.copy(alpha = .12f), CircleShape)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = badgeText,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = badgeBg
                     )
                 }
             }

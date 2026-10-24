@@ -29,6 +29,16 @@ fun StockChartView(
 ) {
     var selectedPointIndex by remember { mutableStateOf<Int?>(null) }
     var selectedPeriod by remember { mutableStateOf("1M") }
+    var chartVisible by remember(pricePoints) { mutableStateOf(false) }
+    LaunchedEffect(pricePoints) { chartVisible = true }
+    val revealProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (chartVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = 850,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing
+        ),
+        label = "chart_reveal"
+    )
 
     val periods = listOf("1D", "1W", "1M", "1Y", "5Y")
 
@@ -42,12 +52,12 @@ fun StockChartView(
             ) {
                 Column {
                     Text(
-                        text = "$ticker Interactive Chart",
+                        text = ticker,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    MetadataLabel(text = "TECHNICAL PRICE & VOLUME MATRIX")
+                    MetadataLabel(text = "PRICE HISTORY")
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -114,12 +124,14 @@ fun StockChartView(
                             .fillMaxSize()
                             .pointerInput(pricePoints) {
                                 detectTapGestures { offset ->
+                                    if (pricePoints.isEmpty()) return@detectTapGestures
                                     val pointWidth = size.width / (pricePoints.size - 1).coerceAtLeast(1)
                                     val index = (offset.x / pointWidth).toInt().coerceIn(0, pricePoints.size - 1)
                                     selectedPointIndex = index
                                 }
                             }
                     ) {
+                        if (pricePoints.isEmpty()) return@Canvas
                         val width = size.width
                         val height = size.height
 
@@ -143,7 +155,8 @@ fun StockChartView(
                         val path = Path()
                         val stepX = width / (pricePoints.size - 1).coerceAtLeast(1)
 
-                        pricePoints.forEachIndexed { index, point ->
+                        val revealedCount = (pricePoints.size * revealProgress).toInt().coerceIn(1, pricePoints.size)
+                        pricePoints.take(revealedCount).forEachIndexed { index, point ->
                             val x = index * stepX
                             val y = height - ((point.close - minPrice) / priceRange * height * 0.85f) - (height * 0.05f)
 
@@ -156,8 +169,13 @@ fun StockChartView(
 
                         drawPath(
                             path = path,
+                            color = lineColor.copy(alpha = .13f),
+                            style = Stroke(width = 9.dp.toPx())
+                        )
+                        drawPath(
+                            path = path,
                             color = lineColor,
-                            style = Stroke(width = 3.dp.toPx())
+                            style = Stroke(width = 2.dp.toPx())
                         )
 
                         // Draw Active Point Marker

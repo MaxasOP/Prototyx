@@ -25,8 +25,9 @@ fun ModeToggleBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(12.dp)
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(10.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
@@ -46,9 +47,10 @@ fun ModeToggleBar(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🌱 Simple Mode",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "GUIDED",
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (currentMode == UserExperienceMode.SIMPLE) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -65,9 +67,10 @@ fun ModeToggleBar(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "⚡ Pro Terminal",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "TERMINAL",
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (currentMode == UserExperienceMode.PRO) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -81,9 +84,9 @@ fun SimpleRiskGauge(
     modifier: Modifier = Modifier
 ) {
     val (color, label, description) = when (status.uppercase()) {
-        "SAFE" -> Triple(Color(0xFF2E7D32), "🟢 Low Risk (Defensive)", "Stable investments focused on capital preservation and steady returns.")
-        "BALANCED" -> Triple(Color(0xFFFF8F00), "🟡 Balanced Growth", "Moderate risk spread across growing tech and dividend leaders.")
-        else -> Triple(Color(0xFFC62828), "🔴 High Growth / Volatile", "High return potential with higher daily price movement.")
+        "SAFE" -> Triple(MaterialTheme.colorScheme.tertiary, "Low risk · Defensive", "Stable investments focused on capital preservation and steady returns.")
+        "BALANCED" -> Triple(com.example.prototyx.theme.Amber, "Balanced growth", "Moderate risk spread across growing tech and dividend leaders.")
+        else -> Triple(MaterialTheme.colorScheme.error, "High growth · Volatile", "High return potential with higher daily price movement.")
     }
 
     DoubleBezelCard(modifier = modifier) {
@@ -147,14 +150,14 @@ fun TapToExplainTooltip(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = {
-                Text(text = "💡 What is $termTitle?", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "About $termTitle", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(text = simpleExplanation, fontSize = 13.sp, lineHeight = 18.sp)
             },
             confirmButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("Got It!")
+                    Text("Got it")
                 }
             }
         )
