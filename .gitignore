@@ -1,0 +1,35 @@
+# API Keys and Secrets
+.env
+*.env
+local.properties
+android/local.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+build/
+dist/
+*.egg-info/
+
+# IDEs & Artifacts
+.idea/
+.vscode/
+.artifacts/
+*.swp
+*.swo
+
+# Android Noise
+.gradle/
+android/*/build/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+
+# OS
+.DS_Store
+Thumbs.db

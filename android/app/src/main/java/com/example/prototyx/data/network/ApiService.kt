@@ -1,0 +1,83 @@
+package com.example.prototyx.data.network
+
+import com.example.prototyx.data.model.*
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+interface ApiService {
+
+    @POST("api/auth/login")
+    suspend fun login(@Body request: LoginRequest): AuthResponse
+
+    @POST("api/auth/register")
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
+
+    @POST("api/holdings/sync")
+    suspend fun syncHoldings(@Body request: SyncHoldingsRequest): Map<String, Float>
+
+    @GET("api/tickers/search")
+    suspend fun searchTickers(
+        @Query("query") query: String? = null,
+        @Query("sector") sector: String? = null
+    ): List<TickerSearchResponse>
+
+    @GET("api/market/indicators/{ticker}")
+    suspend fun getIndicators(
+        @Path("ticker") ticker: String
+    ): MarketIndicatorsResponse
+
+    @GET("api/earnings/transcript/{ticker}")
+    suspend fun getTranscript(
+        @Path("ticker") ticker: String,
+        @Query("year") year: Int = 2026,
+        @Query("quarter") quarter: Int = 3
+    ): EarningsTranscriptResponse
+
+    @POST("api/quant/risk-mesh")
+    suspend fun getRiskMesh(
+        @Body request: RiskMeshRequest
+    ): RiskMeshResponse
+
+    @POST("api/quant/optimize")
+    suspend fun getOptimization(
+        @Body request: OptimizeRequest
+    ): OptimizeResponse
+
+    @POST("api/agents/debate")
+    suspend fun runDebate(
+        @Body request: TickerListRequest
+    ): DebateResponse
+
+    @POST("api/agents/consult")
+    suspend fun runConsult(
+        @Body request: ConsultRequest
+    ): ConsultResponse
+
+    @GET("api/market/chart/{ticker}")
+    suspend fun getStockChart(
+        @Path("ticker") ticker: String,
+        @Query("period") period: String = "1M"
+    ): StockChartResponse
+
+    @GET("api/news/sentiment")
+    suspend fun getNewsSentiment(
+        @Query("ticker") ticker: String? = null
+    ): List<NewsSentimentItem>
+
+    @GET("api/screener/search")
+    suspend fun searchScreener(
+        @Query("query") query: String? = null,
+        @Query("riskLevel") riskLevel: String? = null
+    ): List<ScreenerResultItem>
+
+    @POST("api/quant/stress-test")
+    suspend fun runStressTest(
+        @Body request: StressTestRequest
+    ): StressTestResult
+
+    @GET("api/finny/strategy-report")
+    suspend fun getFinnyReport(): FinnyStrategyReport
+}
