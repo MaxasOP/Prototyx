@@ -11,7 +11,7 @@ def run_committee_debate(tickers):
     if not key: raise RuntimeError('GROQ_API_KEY is not configured')
     facts = [get_latest_metrics(t) for t in tickers]
     result = Groq(api_key=key, timeout=45).chat.completions.create(
-        model=os.getenv('GROQ_MODEL','llama-3.3-70b-versatile'),
+        model=os.getenv('GROQ_MODEL','qwen/qwen3.8-27b'),
         response_format={'type':'json_object'},
         messages=[{'role':'system','content':'Discuss only supplied dated observations. Never invent macro conditions, earnings, price targets, return projections or confidence scores. Return JSON with debate_logs, a list of objects with agent and message. Use technical, fundamental and risk perspectives. Acknowledge missing evidence.'},
                   {'role':'user','content':json.dumps(facts)}])

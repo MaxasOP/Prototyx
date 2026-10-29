@@ -73,7 +73,7 @@ def fetch_live_news_sentiment(ticker: Optional[str] = None) -> List[Dict[str, An
                 """
                 completion = client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
-                    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                    model=os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
                     response_format={"type": "json_object"}
                 )
                 res_data = json.loads(completion.choices[0].message.content)

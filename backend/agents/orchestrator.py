@@ -86,7 +86,7 @@ async def run_consultation(user_query: str) -> Dict[str, Any]:
     
     chat_completion = client.chat.completions.create(
         messages=[{"role": "user", "content": intent_prompt}],
-        model=os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        model=os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b'),
     )
     ticker = chat_completion.choices[0].message.content.strip().upper().replace(" ", "")
     
@@ -129,7 +129,7 @@ async def run_consultation(user_query: str) -> Dict[str, Any]:
     
     final_completion = client.chat.completions.create(
         messages=[{"role": "user", "content": synthesis_prompt}],
-        model=os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        model=os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b'),
     )
     
     final_report = final_completion.choices[0].message.content.strip()
