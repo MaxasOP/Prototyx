@@ -63,6 +63,7 @@ fun ScreenerScreen(repository: DataRepository, modifier: Modifier = Modifier,
 @Composable
 private fun ExploreCompany(company: TickerSearchResponse, repository: DataRepository, onResearch: () -> Unit, onEarnings: () -> Unit, onAllocate: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val detailed = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.prototyx.PrototyxApp).preferences.detailed
     var snapshot by remember(company.ticker) { mutableStateOf<MarketIndicatorsResponse?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -72,7 +73,7 @@ private fun ExploreCompany(company: TickerSearchResponse, repository: DataReposi
         Text(listOf(company.ticker, company.exchange).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         snapshot?.let {
             Text("%.2f".format(it.close) + " " + (it.currency ?: ""), style = MaterialTheme.typography.titleLarge)
-            Text("P/E: ${it.peRatio?.let { value -> "%.1f".format(value) } ?: "—"}   RSI: ${it.rsi?.let { value -> "%.0f".format(value) } ?: "—"}", style = MaterialTheme.typography.bodySmall)
+            if (detailed) Text("P/E: ${it.peRatio?.let { value -> "%.1f".format(value) } ?: "—"}   RSI: ${it.rsi?.let { value -> "%.0f".format(value) } ?: "—"}", style = MaterialTheme.typography.bodySmall)
             Text(it.asOf?.let { date -> "Market snapshot · ${date.take(10)}" } ?: "Latest available market snapshot", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
