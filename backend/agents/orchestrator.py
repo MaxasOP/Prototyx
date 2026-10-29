@@ -18,22 +18,34 @@ async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
     print(f"DEBUG: Data Analyst working on {ticker}...")
     try:
         from data.market_data import resolve_ticker
-        stock = yf.Ticker(resolve_ticker(ticker))
-        info = stock.info
+        resolved = resolve_ticker(ticker)
+        stock = yf.Ticker(resolved)
+
         history = stock.history(period="1mo")
-        
-        current_price = info.get("regularMarketPrice") or info.get("currentPrice")
-        if not current_price and not history.empty:
-            current_price = history['Close'].iloc[-1]
+        if history.empty:
+            history = stock.history(period="3mo")
+
+        if history.empty:
+            return {"ticker": ticker, "status": "error", "message": f"No price history found for {ticker}"}
+
+        current_price = float(history['Close'].iloc[-1])
+        volatility = float(history['Close'].pct_change().std() * (252**0.5)) if len(history) > 1 else 0.0
+
+        info = {}
+        try:
+            info = stock.info or {}
+        except Exception:
+            pass
             
-        volatility = history['Close'].pct_change().std() * (252**0.5) if not history.empty else 0
+        market_cap = info.get("marketCap") or info.get("regularMarketOpen")
+        pe_ratio = info.get("trailingPE") or info.get("forwardPE")
         
         return {
             "ticker": ticker,
             "price": current_price,
             "volatility": f"{volatility:.2%}",
-            "market_cap": info.get("marketCap"),
-            "pe_ratio": info.get("trailingPE"),
+            "market_cap": market_cap,
+            "pe_ratio": pe_ratio,
             "status": "success"
         }
     except Exception as e:
