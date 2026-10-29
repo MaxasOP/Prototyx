@@ -235,7 +235,7 @@ fun DashboardScreen(
         }
         if (syncError != null || searchError != null) item { StatusMessage(syncError ?: searchError.orEmpty(), isError = true) }
         if (selectedTicker.isNotEmpty()) item {
-            Text(selectedTicker, style = MaterialTheme.typography.titleMedium)
+            MetadataLabel("COMPANY TOOLS")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { onResearch(selectedTicker) }) { Text("Research") }
                 TextButton(onClick = { onEarnings(selectedTicker) }) { Text("Earnings") }

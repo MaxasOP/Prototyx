@@ -1,167 +1,92 @@
 package com.example.prototyx.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.prototyx.data.DataRepository
-import com.example.prototyx.data.model.ScreenerResultItem
-import com.example.prototyx.data.model.UserExperienceMode
-import com.example.prototyx.ui.components.DoubleBezelCard
+import com.example.prototyx.data.model.TickerSearchResponse
+import com.example.prototyx.data.model.MarketIndicatorsResponse
 import com.example.prototyx.ui.components.EditorialHeading
 import com.example.prototyx.ui.components.MetadataLabel
-import com.example.prototyx.ui.components.ModeToggleBar
+import kotlinx.coroutines.launch
 
 @Composable
-fun ScreenerScreen(
-    repository: DataRepository,
-    modifier: Modifier = Modifier,
-    onResearch: (String) -> Unit = {},
-    onEarnings: (String) -> Unit = {},
-    onAddHolding: (String) -> Unit = {}
-) {
-    val appPreferences = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.prototyx.PrototyxApp).preferences
-    var queryText by rememberSaveable { mutableStateOf("") }
-    var userMode by remember(appPreferences.detailed) { mutableStateOf(if(appPreferences.detailed) UserExperienceMode.PRO else UserExperienceMode.SIMPLE) }
-    var results by remember { mutableStateOf<List<ScreenerResultItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(queryText) {
-        isLoading = true
-        errorMessage = null
+fun ScreenerScreen(repository: DataRepository, modifier: Modifier = Modifier,
+    onResearch: (String) -> Unit = {}, onEarnings: (String) -> Unit = {}, onAddHolding: (String) -> Unit = {}) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var known by remember { mutableStateOf<List<TickerSearchResponse>>(emptyList()) }
+    var remote by remember { mutableStateOf<List<TickerSearchResponse>>(emptyList()) }
+    var remoteQuery by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var retry by remember { mutableIntStateOf(0) }
+    val normalized = query.trim()
+    val local = known.filter { normalized.isBlank() || it.ticker.contains(normalized, true) || it.name.contains(normalized, true) }
+    val visible = (local + if (remoteQuery == normalized) remote else emptyList()).distinctBy { it.ticker }
+    LaunchedEffect(normalized, retry) {
+        loading = true; error = null
         try {
-            kotlinx.coroutines.delay(350)
-            results = repository.searchScreener(queryText)
+            if (normalized.isNotBlank()) kotlinx.coroutines.delay(300)
+            val found = repository.searchTickers(normalized)
+            remote = found; remoteQuery = normalized
+            known = (known + found).distinctBy { it.ticker }.takeLast(200)
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) {
-            results = emptyList()
-            errorMessage = "Search unavailable. Check your connection and try again."
-        } finally { isLoading = false }
+        catch (e: Exception) { error = "Could not search more companies. Check your connection and retry." }
+        finally { loading = false }
     }
-
-    val presetQueries = listOf(
-        "TCS",
-        "AAPL"
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        EditorialHeading(text = "Explore")
-        Text("Find a company. Review the evidence. Decide what belongs in your portfolio.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ModeToggleBar(
-            currentMode = userMode,
-            onModeChanged = { userMode = it; appPreferences.updateDetailed(it == UserExperienceMode.PRO) }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Search Input
-        OutlinedTextField(
-            value = queryText,
-            onValueChange = { queryText = it },
-            placeholder = { Text("Company or ticker, e.g. AAPL or TCS", fontSize = 12.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-            )
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Preset Chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            presetQueries.take(2).forEach { preset ->
-                AssistChip(
-                    onClick = { queryText = preset.replace(Regex("[^a-zA-Z ]"), "").trim() },
-                    label = { Text(preset, fontSize = 11.sp) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (!isLoading && results.isEmpty() && errorMessage == null) {
-            Text("No supported companies match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(results) { item ->
-                    ScreenerResultCard(item = item, userMode = userMode, onResearch = { onResearch(item.ticker) }, onEarnings = { onEarnings(item.ticker) }, onAddHolding = { onAddHolding(item.ticker) })
-                }
+    Column(modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        EditorialHeading("Explore")
+        Text("Search Indian and international companies by name or ticker.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(query, { query = it }, label = { Text("Company or ticker") },
+            placeholder = { Text("e.g. HDFC Bank, Tesla, SBIN.NS") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = { retry++ }) { Text("Retry search") } }
+        MetadataLabel(if (normalized.isBlank()) "POPULAR COMPANIES · SEARCH FOR MORE" else "${visible.size} MATCHES" + if (loading) " · SEARCHING MORE" else "")
+        if (!loading && error == null && visible.isEmpty()) Text("No companies found. Try the company name or exchange ticker.")
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(visible, key = { it.ticker }) { company ->
+                ExploreCompany(company, repository, { onResearch(company.ticker) }, { onEarnings(company.ticker) }, { onAddHolding(company.ticker) })
             }
         }
     }
 }
 
 @Composable
-fun ScreenerResultCard(item: ScreenerResultItem, userMode: UserExperienceMode, onResearch: () -> Unit = {}, onEarnings: () -> Unit = {}, onAddHolding: () -> Unit = {}) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun ExploreCompany(company: TickerSearchResponse, repository: DataRepository, onResearch: () -> Unit, onEarnings: () -> Unit, onAllocate: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var snapshot by remember(company.ticker) { mutableStateOf<MarketIndicatorsResponse?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(item.ticker, style = MaterialTheme.typography.titleLarge)
-                Text(item.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(String.format("%.2f", item.price), fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 20.sp)
-                Text(item.currency ?: "Currency unavailable", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        Text(company.name, style = MaterialTheme.typography.titleMedium)
+        Text(listOf(company.ticker, company.exchange).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        snapshot?.let {
+            Text("%.2f".format(it.close) + " " + (it.currency ?: ""), style = MaterialTheme.typography.titleLarge)
+            Text("P/E: ${it.peRatio?.let { value -> "%.1f".format(value) } ?: "—"}   RSI: ${it.rsi?.let { value -> "%.0f".format(value) } ?: "—"}", style = MaterialTheme.typography.bodySmall)
+            Text(it.asOf?.let { date -> "Market snapshot · ${date.take(10)}" } ?: "Latest available market snapshot", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (userMode == UserExperienceMode.PRO) {
-            Row(Modifier.fillMaxWidth()) {
-                listOf("P/E" to (item.peRatio?.let { String.format("%.1f", it) } ?: "—"),
-                    "YIELD" to (item.dividendYield?.let { "$it%" } ?: "—"),
-                    "RSI" to (item.rsi?.let { String.format("%.0f", it) } ?: "—")).forEach { (label, value) ->
-                    Column(Modifier.weight(1f)) {
-                        MetadataLabel(label)
-                        Text(value, style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-                    }
-                }
-            }
-        }
-        Text(if (userMode == UserExperienceMode.SIMPLE) item.plainEnglishSummary else item.aiAnalysis,
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = onResearch, modifier = Modifier.weight(1f)) { Text("Research") }
             TextButton(onClick = onEarnings, modifier = Modifier.weight(1f)) { Text("Earnings") }
-            TextButton(onClick = onAddHolding, modifier = Modifier.weight(1f)) { Text("Allocate") }
+            TextButton(onClick = onAllocate, modifier = Modifier.weight(1f)) { Text("Allocate") }
         }
+        if (snapshot == null) TextButton(enabled = !loading, onClick = { scope.launch {
+            loading = true; error = null
+            try { snapshot = repository.getIndicators(company.ticker) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { error = "Market snapshot unavailable. You can retry." }
+            finally { loading = false }
+        } }) { Text(if (loading) "Loading snapshot…" else "View market snapshot") }
     }
 }

@@ -4,6 +4,25 @@ import requests
 
 BASE_URL = 'https://api.roic.ai/v3.0.0'
 
+def earnings_identifier(ticker):
+    symbol = ticker.strip().upper()
+    if ':' in symbol:
+        return symbol
+    if symbol.endswith('.NS'):
+        return 'NSE:' + symbol[:-3]
+    if symbol.endswith('.BO'):
+        return 'BSE:' + symbol[:-3]
+    from data.company_search import POPULAR, search_companies
+    company = next((c for c in POPULAR if c[0] == symbol), None)
+    if company and company[2] in ('NSE', 'NASDAQ', 'NYSE'):
+        return company[2] + ':' + symbol
+    exchanges = {'NASDAQ':'NASDAQ', 'NMS':'NASDAQ', 'NGM':'NASDAQ', 'NCM':'NASDAQ',
+                 'NYSE':'NYSE', 'NYQ':'NYSE', 'NSE':'NSE', 'NSI':'NSE', 'BSE':'BSE', 'BOM':'BSE'}
+    for company in search_companies(symbol):
+        if company['ticker'].upper() == symbol and company['exchange'].upper() in exchanges:
+            return exchanges[company['exchange'].upper()] + ':' + symbol
+    raise ValueError('Could not resolve the transcript exchange. Use a ticker such as NASDAQ:AAPL or NSE:SBIN.')
+
 def _get(path, params=None):
     key = os.getenv('ROIC_API_KEY')
     if not key:
@@ -21,13 +40,7 @@ def _get(path, params=None):
 def get_earnings_transcript(ticker, year=2026, quarter=3):
     if not ticker.strip() or quarter not in range(1,5):
         raise ValueError('Provide a ticker and quarter from 1 to 4')
-    identifier = ticker.strip().upper()
-    # Bare symbols can be ambiguous across exchanges; only resolve known listings.
-    listings = {'AAPL':'NASDAQ:AAPL', 'MSFT':'NASDAQ:MSFT', 'NVDA':'NASDAQ:NVDA',
-                'TCS':'NSE:TCS', 'RELIANCE':'NSE:RELIANCE', 'INFY':'NSE:INFY'}
-    identifier = listings.get(identifier, identifier)
-    if ':' not in identifier:
-        raise ValueError('Use an exchange-qualified ticker, for example NASDAQ:AAPL')
+    identifier = earnings_identifier(ticker)
     page = _get('/company-events', {'identifier':identifier, 'content':'transcript', 'limit':100})
     for _ in range(20):
         for event in page.get('data', []):
@@ -40,7 +53,9 @@ def get_earnings_transcript(ticker, year=2026, quarter=3):
             text = document.get('text')
             if not isinstance(text, str) or not text.strip():
                 raise ValueError('ROIC returned an empty transcript')
-            return {'ticker':identifier, 'company_name':identifier,
+            exchange, symbol = identifier.split(':', 1)
+            market_symbol = symbol + {'NSE':'.NS', 'BSE':'.BO'}.get(exchange, '')
+            return {'ticker':market_symbol, 'company_name':identifier,
                     'quarter':f'Q{quarter} {year}', 'prepared_remarks':text,
                     'qa_session':'Included in the full raw transcript above; speaker labels are unavailable.',
                     'source':'ROIC.ai', 'asOf':document.get('updated_at')}

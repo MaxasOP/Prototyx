@@ -63,6 +63,8 @@ data class TickerSearchResponse(
 data class MarketIndicatorsResponse(
     val ticker: String,
     val close: Double,
+    val currency: String? = null,
+    val asOf: String? = null,
     @SerializedName("sma_50") val sma50: Double? = null,
     @SerializedName("sma_200") val sma200: Double? = null,
     val rsi: Double? = null,

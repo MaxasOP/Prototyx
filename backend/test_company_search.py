@@ -42,4 +42,15 @@ class CompanySearchTests(unittest.TestCase):
             get_stock_chart('SBIN.BO')
             self.assertEqual([call.args[0] for call in lookup.call_args_list], ['SBIN.NS','SBIN.BO'])
 
+    def test_earnings_resolves_new_companies_and_returns_market_ticker(self):
+        from data.earnings import earnings_identifier, get_earnings_transcript
+        self.assertEqual(earnings_identifier('SBIN.NS'), 'NSE:SBIN')
+        self.assertEqual(earnings_identifier('SBIN.BO'), 'BSE:SBIN')
+        self.assertEqual(earnings_identifier('TSLA'), 'NASDAQ:TSLA')
+        with patch('data.company_search.search_companies', return_value=[dict(ticker='SHOP', exchange='NASDAQ')]):
+            self.assertEqual(earnings_identifier('SHOP'), 'NASDAQ:SHOP')
+        event = {'data':[{'fiscal_year':2026,'fiscal_quarter':3,'transcripts':[{'id':'fixture','type':'raw'}]}]}
+        with patch('data.earnings._get', side_effect=[event, {'text':'Provider transcript'}]):
+            self.assertEqual(get_earnings_transcript('NSE:SBIN')['ticker'], 'SBIN.NS')
+
 if __name__ == '__main__': unittest.main()

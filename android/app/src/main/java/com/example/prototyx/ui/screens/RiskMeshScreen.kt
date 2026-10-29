@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.sp
 import com.example.prototyx.data.DataRepository
 import com.example.prototyx.data.MockDataRepository
 import com.example.prototyx.data.model.RiskMeshResponse
-import com.example.prototyx.data.model.StressTestResult
 import com.example.prototyx.theme.PrototyxTheme
 import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
@@ -36,9 +35,7 @@ fun RiskMeshScreen(
     var weightInput by remember { mutableStateOf("") }
 
     var riskMeshResult by remember { mutableStateOf<RiskMeshResponse?>(null) }
-    var stressTestResult by remember { mutableStateOf<StressTestResult?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    var isStressLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(portfolioHoldings) {
@@ -74,7 +71,7 @@ fun RiskMeshScreen(
                 TextButton(onClick = onExplore) { Text("Explore companies") }
             } else {
                 Text("Start with your saved portfolio. Changes here are a temporary scenario.", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { meshHoldings = portfolioHoldings.mapValues { it.value.toDouble() }; riskMeshResult = null; stressTestResult = null }) { Text("Reset to my portfolio") }
+                TextButton(onClick = { meshHoldings = portfolioHoldings.mapValues { it.value.toDouble() }; riskMeshResult = null }) { Text("Reset to my portfolio") }
             }
             TextButton(onClick = onOptimize) { Text("Review target allocations") }
             DoubleBezelCard {
@@ -122,7 +119,7 @@ fun RiskMeshScreen(
                                 if (weight > 0) newHoldings[ticker] = weight else newHoldings.remove(ticker)
                                 if (newHoldings.values.sum() > 1.00001) { errorMessage = "Total scenario allocation cannot exceed 100%."; return@Button }
                                 meshHoldings = newHoldings
-                                riskMeshResult = null; stressTestResult = null; errorMessage = null
+                                riskMeshResult = null; errorMessage = null
                                 tickerInput = ""
                                 weightInput = ""
                             }
@@ -166,103 +163,6 @@ fun RiskMeshScreen(
             }
         }
 
-        // Stress Testing Simulator Section
-        item(key = "stress_test_card") {
-            DoubleBezelCard {
-                MetadataLabel(text = "HISTORICAL REPLAY / 2022")
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Replay observed 2022 market windows at your current weights. This is historical evidence, not a forecast.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val scenarios = listOf(
-                        "rate_hike" to "2022 rates",
-                        "oil_spike" to "2022 oil",
-                        "tech_selloff" to "2022 tech"
-                    )
-
-                    scenarios.forEach { (id, label) ->
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isStressLoading = true
-                                    errorMessage = null
-                                    stressTestResult = null
-                                    try {
-                                        require(meshHoldings.isNotEmpty()) { "Add holdings before running a historical replay." }
-                                        stressTestResult = repository.runStressTest(meshHoldings.keys.toList(), meshHoldings.values.toList(), id)
-                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                                    catch (e: Exception) { errorMessage = e.message ?: "Historical replay unavailable" }
-                                    finally { isStressLoading = false }
-                                }
-                            },
-                            enabled = !isStressLoading,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        ) {
-                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                if (isStressLoading) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    }
-                }
-
-                stressTestResult?.let { res ->
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "SCENARIO: ${res.scenarioName}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        BentoMetric(label = "Return Shock", value = "${String.format("%.1f", res.portfolioReturnChange * 100)}%", modifier = Modifier.weight(1f))
-                        BentoMetric(label = "Stressed VaR", value = "${String.format("%.1f", res.stressedVaR * 100)}%", modifier = Modifier.weight(1f))
-                        BentoMetric(label = "Max Drawdown", value = "${String.format("%.1f", res.stressedDrawdown * 100)}%", modifier = Modifier.weight(1f))
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "💡 FINNY Verdict: ${res.plainEnglishVerdict}",
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        }
 
         errorMessage?.let { error ->
             item(key = "error") {

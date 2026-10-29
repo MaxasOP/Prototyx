@@ -108,11 +108,12 @@ fun CommitteeScreen(
         }
         if (currentView == CommitteeView.Selection) {
             item(key = "earnings_entry") {
-                SelectionTile(title = "Read company earnings", description = "Open the original earnings-call transcript for a company and fiscal period.", onClick = { onEarnings("") })
+                SelectionTile(title = "Read company earnings", description = "Open the original earnings-call transcript for a company and fiscal period.", actionLabel = "Find earnings →", onClick = { onEarnings("") })
             }
             item(key = "tile_consult") {
                 SelectionTile(
                     title = "Research a thesis",
+                    actionLabel = "Ask a research question →",
                     description = "Test an investment question against fundamental, technical and portfolio-risk perspectives.",
                     onClick = { currentView = CommitteeView.Consultation }
                 )
@@ -121,6 +122,7 @@ fun CommitteeScreen(
             item(key = "tile_debate") {
                 SelectionTile(
                     title = "Compare securities",
+                    actionLabel = "Compare companies →",
                     description = "Read technical, fundamental and risk perspectives on the same observed market data.",
                     onClick = { currentView = CommitteeView.Debate }
                 )
@@ -308,6 +310,7 @@ fun CommitteeScreen(
 fun SelectionTile(
     title: String,
     description: String,
+    actionLabel: String,
     onClick: () -> Unit
 ) {
     Box(
@@ -328,7 +331,7 @@ fun SelectionTile(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Open research →",
+                text = actionLabel,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,

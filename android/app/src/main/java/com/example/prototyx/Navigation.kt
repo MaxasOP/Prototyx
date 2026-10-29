@@ -105,6 +105,7 @@ fun MainNavigation(
     )
 
     val currentScreen = backStack.lastOrNull() ?: Main
+    val showFinny = currentScreen != Login && currentScreen != Account && currentScreen != Notifications
 
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
@@ -117,6 +118,17 @@ fun MainNavigation(
     }
 
     Scaffold(
+        floatingActionButton = {
+            if (showFinny) ExtendedFloatingActionButton(
+                onClick = {
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) showVoiceSheet = true
+                    else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                },
+                icon = { Icon(FinnyAssistantIcon, contentDescription = null) },
+                text = { Text("Ask Finny") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary)
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -134,10 +146,6 @@ fun MainNavigation(
                             }
                         }
                         IconButton(onClick = { backStack.add(Account) }) { Icon(Icons.Outlined.AccountCircle,contentDescription = "Account and settings") }
-                        TextButton(onClick = {
-                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) showVoiceSheet = true
-                            else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                        }) { Text("Ask Finny", fontSize = 12.sp) }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
@@ -213,7 +221,7 @@ fun MainNavigation(
         }
 
         NavDisplay(
-
+            modifier = Modifier.padding(bottom = if (showFinny) 76.dp else 0.dp),
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             entryProvider = entryProvider {
