@@ -1,111 +1,65 @@
-import os
-import json
-import uuid
-from typing import List, Dict, Any, Optional
-from duckduckgo_search import DDGS
-import yfinance as yf
-from groq import Groq
-from dotenv import load_dotenv
+"""Dated article feeds only. Web search results are never treated as news."""
+import hashlib
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
+from functools import lru_cache
+import time
+import re
+import requests
+import xml.etree.ElementTree as ET
 
-load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+COMPANIES = {
+    'TCS': ('Tata Consultancy Services', ['tcs','tata consultancy']),
+    'RELIANCE': ('Reliance Industries', ['reliance']),
+    'HDFCBANK': ('HDFC Bank', ['hdfc']),
+    'INFY': ('Infosys', ['infosys','infy']),
+    'AAPL': ('Apple stock', ['apple','aapl']),
+    'MSFT': ('Microsoft', ['microsoft','msft']),
+    'NVDA': ('Nvidia', ['nvidia','nvda']),
+    'ITC': ('ITC Limited', ['itc']),
+    'HINDUNILVR': ('Hindustan Unilever', ['hindustan unilever','hindunilvr']),
+}
 
-def fetch_live_news_sentiment(ticker: Optional[str] = None) -> List[Dict[str, Any]]:
-    client = None
-    if GROQ_API_KEY and GROQ_API_KEY.startswith("gsk_"):
+def fetch_live_news_sentiment(ticker=None):
+    clean = ticker.strip().upper() if ticker else None
+    return _feed(clean, int(time.time()//300))
+
+@lru_cache(maxsize=128)
+def _feed(ticker, bucket):
+    query, aliases = COMPANIES.get(ticker, (ticker, [ticker.lower()] if ticker else []))
+    query = (query or 'stock market economy earnings') + ' when:7d'
+    response = requests.get('https://news.google.com/rss/search',
+                            params={'q':query,'hl':'en-US','gl':'US','ceid':'US:en'}, timeout=15)
+    response.raise_for_status()
+    root = ET.fromstring(response.content)
+    now = datetime.now(timezone.utc)
+    items, seen = [], set()
+    for article in root.findall('./channel/item'):
+        title = (article.findtext('title') or '').strip()
+        publisher = (article.findtext('source') or '').strip()
+        url = (article.findtext('link') or '').strip()
+        published = article.findtext('pubDate')
+        if not title or not publisher or not url.startswith('https://') or not published:
+            continue
         try:
-            client = Groq(api_key=GROQ_API_KEY)
-        except Exception as e:
-            print(f"Groq client init error: {e}")
-
-    query = f"{ticker} stock news sentiment financial" if ticker else "US Indian stock market economy earnings news"
-    all_results = []
-
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=5))
-            all_results.extend(results)
-    except Exception as e:
-        print(f"DDGS News fetch error: {e}")
-
-    if not all_results and ticker:
-        try:
-            symbol = f"{ticker}.NS" if ticker.upper() in ["TCS", "RELIANCE", "INFY", "HDFCBANK", "ITC"] else ticker
-            yt = yf.Ticker(symbol)
-            yf_news = yt.news or []
-            for item in yf_news[:5]:
-                title = item.get("title", "")
-                publisher = item.get("publisher", "Source unavailable")
-                if title:
-                    all_results.append({"title": title, "body": title, "source": publisher})
-        except Exception as e:
-            print(f"yfinance news error: {e}")
-
-    # Default fallback articles if live search returned 0 items
-    if not all_results:
-        import requests
-        import xml.etree.ElementTree as ET
-        feed = requests.get('https://news.google.com/rss/search',
-                            params={'q':f'{ticker or "stock market"} stock when:7d','hl':'en-US','gl':'US','ceid':'US:en'},timeout=15)
-        feed.raise_for_status()
-        root = ET.fromstring(feed.content)
-        for article in root.findall('./channel/item')[:4]:
-            all_results.append({'title':article.findtext('title'), 'body':article.findtext('title'),
-                                'source':article.findtext('source'), 'url':article.findtext('link'),
-                                'published':article.findtext('pubDate')})
-        if not all_results:
-            raise RuntimeError('News providers returned no articles')
-
-    news_items = []
-    for idx, item in enumerate(all_results[:4]):
-        title = item.get("title", "Market Intelligence Update")
-        body = item.get("body", title)
-        source = item.get("source") or item.get("publisher") or item.get("href", "Source unavailable")
-
-        sentiment = "UNASSESSED"
-        sentiment_score = 0.0
-        impact = "Sentiment analysis unavailable; read the source article."
-        summary = title
-
-        if client:
-            try:
-                prompt = f"""
-                Analyze this financial news article for stock investors:
-                Title: "{title}"
-                Body: "{body}"
-
-                Respond strictly in JSON format with no additional text:
-                {{
-                    "sentiment": "BULLISH" or "NEUTRAL" or "BEARISH",
-                    "sentiment_score": float between -1.0 and 1.0,
-                    "impact": "1-sentence portfolio impact analysis",
-                    "summary": "1-sentence plain English summary for retail investors"
-                }}
-                """
-                completion = client.chat.completions.create(
-                    messages=[{"role": "user", "content": prompt}],
-                    model=os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
-                    response_format={"type": "json_object"}
-                )
-                res_data = json.loads(completion.choices[0].message.content)
-                sentiment = str(res_data.get("sentiment", "NEUTRAL")).upper()
-                sentiment_score = float(res_data.get("sentiment_score", 0.15))
-                impact = str(res_data.get("impact", impact))
-                summary = str(res_data.get("summary", summary))
-            except Exception as ex:
-                print(f"Groq sentiment analysis error for item {idx}: {ex}")
-
-        news_items.append({
-            "id": f"news_{idx}_{uuid.uuid4().hex[:6]}",
-            "title": title,
-            "source": source,
-            "timestamp": item.get('published') or "Publication time unavailable",
-            "url": item.get('url') or item.get('href'),
-            "tickers": [ticker.upper()] if ticker else ["MARKET", "TECH"],
-            "sentiment": sentiment,
-            "sentimentScore": sentiment_score,
-            "aiImpactAnalysis": impact,
-            "plainEnglishSummary": summary
-        })
-
-    return news_items
+            date = parsedate_to_datetime(published)
+            if date.tzinfo is None: date = date.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        if not now-timedelta(days=7) <= date <= now+timedelta(minutes=5):
+            continue
+        if ticker and not any(re.search(r'\b'+re.escape(alias)+r'\b', title, re.IGNORECASE) for alias in aliases):
+            continue
+        # The source suffix is metadata, not part of the headline.
+        suffix = ' - '+publisher
+        headline = title[:-len(suffix)] if title.endswith(suffix) else title
+        identity = headline.casefold()
+        if identity in seen: continue
+        seen.add(identity)
+        items.append({'id':hashlib.sha256(url.encode()).hexdigest()[:20], 'title':headline,
+                      'source':publisher, 'timestamp':date.isoformat(), 'url':url,
+                      'tickers':[ticker] if ticker else [], 'sentiment':'UNASSESSED','sentimentScore':0.0,
+                      'aiImpactAnalysis':'Publisher headline. Portfolio impact has not been assessed.',
+                      'plainEnglishSummary':'Publisher headline. Open the source for the full report.'})
+    items.sort(key=lambda item:item['timestamp'], reverse=True)
+    return items[:5]
