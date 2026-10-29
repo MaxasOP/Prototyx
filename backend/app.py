@@ -253,10 +253,10 @@ def run_debate(request: TickerListRequest, current_user: User = Depends(get_curr
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/agents/consult")
-async def run_consult(request: ConsultRequest, current_user: User = Depends(get_current_user)):
+async def run_consult(request: ConsultRequest, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     from agents.orchestrator import run_consultation
     try:
-        return await run_consultation(request.query)
+        return await run_consultation(request.query, current_user, session)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
