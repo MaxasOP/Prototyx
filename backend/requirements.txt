@@ -9,6 +9,7 @@ requests
 python-dotenv
 duckduckgo-search
 groq
+google-generativeai
 sqlmodel
 psycopg2-binary
 psycopg[binary]

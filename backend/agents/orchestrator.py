@@ -6,10 +6,47 @@ import yfinance as yf
 from duckduckgo_search import DDGS
 from groq import Groq
 
+import os
+import json
+import asyncio
+from typing import Dict, Any, List
+import yfinance as yf
+from duckduckgo_search import DDGS
+from groq import Groq
+import google.generativeai as genai
+
 # API Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    gemini_model = None
+
+async def call_llm(prompt: str, json_mode: bool = False) -> str:
+    """Helper to call Gemini if available, otherwise Groq."""
+    if gemini_model:
+        try:
+            config = {"response_mime_type": "application/json"} if json_mode else {}
+            response = gemini_model.generate_content(prompt, generation_config=config)
+            return response.text
+        except Exception as e:
+            print(f"Gemini call failed, falling back to Groq: {e}")
+
+    if client:
+        model = os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b')
+        messages = [{"role": "user", "content": prompt}]
+        kwargs = {"messages": messages, "model": model, "max_tokens": 300}
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        comp = client.chat.completions.create(**kwargs)
+        return comp.choices[0].message.content
+
+    raise RuntimeError("Neither GEMINI_API_KEY nor GROQ_API_KEY is configured")
 
 async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
     """
@@ -112,15 +149,10 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     }}
     """
     
-    chat_completion = client.chat.completions.create(
-        messages=[{"role": "user", "content": intent_prompt}],
-        model=os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b'),
-        response_format={'type':'json_object'},
-        max_tokens=100,
-    )
+    chat_content = await call_llm(intent_prompt, json_mode=True)
 
     try:
-        decision = json.loads(chat_completion.choices[0].message.content)
+        decision = json.loads(chat_content)
         ticker = decision.get("ticker", "NONE").upper().replace(" ", "")
         action = decision.get("action", "none")
         weight = float(decision.get("weight", 0.1))
@@ -215,14 +247,8 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         3. FINAL VERDICT (BUY/SELL/HOLD/WAIT/ACTION COMPLETED)
     - Keep it under 150 words.
     """
-    
-    final_completion = client.chat.completions.create(
-        messages=[{"role": "user", "content": synthesis_prompt}],
-        model=os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b'),
-        max_tokens=250,
-    )
-    
-    final_report = final_completion.choices[0].message.content.strip()
+
+    final_report = (await call_llm(synthesis_prompt)).strip()
 
     return {
         "asset": ticker,
