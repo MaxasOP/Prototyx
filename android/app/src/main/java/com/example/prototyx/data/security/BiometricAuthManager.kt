@@ -43,8 +43,7 @@ class BiometricAuthManager(private val context: Context) {
 
             val canAuth = biometricManager.canAuthenticate(authenticators)
             if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
-                // If biometrics not supported or not enrolled on emulator/device, allow pass-through
-                onSuccess()
+                onError("Set up a supported device lock or biometrics in Android settings. You can sign out instead.")
                 return
             }
 
@@ -75,14 +74,12 @@ class BiometricAuthManager(private val context: Context) {
                         super.onAuthenticationError(errorCode, errString)
                         Log.w("BiometricAuthManager", "Authentication error $errorCode: $errString")
                         onError(errString.toString())
-                        onSuccess()
                     }
 
                     override fun onAuthenticationFailed() {
                         super.onAuthenticationFailed()
-                        Log.w("BiometricAuthManager", "Authentication failed, bypassing lock")
+                        Log.w("BiometricAuthManager", "Authentication failed; app remains locked")
                         onError("Biometric verification failed.")
-                        onSuccess()
                     }
                 }
             )
@@ -90,8 +87,7 @@ class BiometricAuthManager(private val context: Context) {
             biometricPrompt.authenticate(promptInfo)
         } catch (e: Exception) {
             Log.e("BiometricAuthManager", "Biometric authentication trigger failed", e)
-            // Bypass gracefully if biometric subsystem fails on device
-            onSuccess()
+            onError("Authentication is unavailable. Retry or sign out.")
         }
     }
 }

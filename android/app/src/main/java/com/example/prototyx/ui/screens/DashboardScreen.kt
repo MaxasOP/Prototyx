@@ -182,9 +182,6 @@ fun DashboardScreen(
                     if (isSyncing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     else Icon(Icons.Default.Refresh, contentDescription = "Sync portfolio")
                 }
-                IconButton(onClick = { coroutineScope.launch { repository.logout(); onLogout() } }) {
-                    Icon(Icons.AutoMirrored.Default.ExitToApp, contentDescription = "Sign out", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
             }
         }
         item {

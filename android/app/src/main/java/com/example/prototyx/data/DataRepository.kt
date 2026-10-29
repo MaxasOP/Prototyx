@@ -36,7 +36,7 @@ interface DataRepository {
     suspend fun getFinnyReport(): FinnyStrategyReport
 }
 
-class DefaultDataRepository(private val dao: PrototyxDao) : DataRepository {
+class DefaultDataRepository(private val dao: PrototyxDao, private val preferences: AppPreferences? = null) : DataRepository {
     private val holdingsMutex = Mutex()
     override suspend fun restoreHoldings() = holdingsMutex.withLock {
         val cloud = RetrofitInstance.apiService.getHoldings()
@@ -61,7 +61,7 @@ class DefaultDataRepository(private val dao: PrototyxDao) : DataRepository {
         return response
     }
 
-    override suspend fun logout() {
+    override suspend fun logout() = holdingsMutex.withLock {
         dao.clearHoldings()
         dao.clearIndicatorCache()
     }
@@ -160,10 +160,10 @@ class DefaultDataRepository(private val dao: PrototyxDao) : DataRepository {
         RetrofitInstance.apiService.getTranscript(ticker, year, quarter)
 
     override suspend fun getRiskMesh(tickers: List<String>, weights: List<Double>) =
-        RetrofitInstance.apiService.getRiskMesh(RiskMeshRequest(tickers, weights))
+        RetrofitInstance.apiService.getRiskMesh(RiskMeshRequest(tickers, weights,preferences?.analysisCurrency,preferences?.benchmark?.ifBlank { null }))
 
     override suspend fun getOptimization(tickers: List<String>, views: Map<String, Double>?) =
-        RetrofitInstance.apiService.getOptimization(OptimizeRequest(tickers, views))
+        RetrofitInstance.apiService.getOptimization(OptimizeRequest(tickers, views,preferences?.analysisCurrency))
 
     override suspend fun runDebate(tickers: List<String>) =
         RetrofitInstance.apiService.runDebate(TickerListRequest(tickers))
@@ -181,7 +181,7 @@ class DefaultDataRepository(private val dao: PrototyxDao) : DataRepository {
         RetrofitInstance.apiService.searchScreener(query, riskLevel)
 
     override suspend fun runStressTest(tickers: List<String>, weights: List<Double>, scenarioId: String) =
-        RetrofitInstance.apiService.runStressTest(StressTestRequest(tickers, weights, scenarioId))
+        RetrofitInstance.apiService.runStressTest(StressTestRequest(tickers, weights, scenarioId,preferences?.analysisCurrency))
 
     override suspend fun getFinnyReport() =
         RetrofitInstance.apiService.getFinnyReport()

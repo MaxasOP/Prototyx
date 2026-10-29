@@ -43,7 +43,7 @@ class AuthManager(context: Context) {
     fun clearToken() {
         sessionExpired = true
         sessionToken = null
-        sharedPreferences?.edit()?.remove(KEY_TOKEN)?.apply()
+        sharedPreferences?.edit()?.remove(KEY_TOKEN)?.remove(KEY_DISCLAIMER_ACCEPTED)?.apply()
     }
 
     fun hasAcceptedDisclaimer(): Boolean {

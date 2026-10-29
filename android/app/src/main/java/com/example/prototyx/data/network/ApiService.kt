@@ -8,6 +8,15 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    @GET("api/account") suspend fun getAccount(): UserProfile
+    @POST("api/account/profile") suspend fun updateAccount(@Body body: Map<String,String>): UserProfile
+    @POST("api/auth/logout") suspend fun revokeSession(): Map<String,String>
+    @POST("api/account/password") suspend fun changePassword(@Body body: Map<String,String>): Map<String,String>
+    @POST("api/account/signout-all") suspend fun signOutAll(@Body body: Map<String,String>): Map<String,String>
+    @POST("api/account/delete") suspend fun deleteAccount(@Body body: Map<String,String>): Map<String,String>
+    @GET("api/account/export") suspend fun exportAccount(): com.google.gson.JsonObject
+    @POST("api/auth/forgot-password") suspend fun forgotPassword(@Body body: Map<String,String>): Map<String,String>
+    @POST("api/auth/reset-password") suspend fun resetPassword(@Body body: Map<String,String>): Map<String,String>
     @GET("api/holdings")
     suspend fun getHoldings(): Map<String, Float>
 

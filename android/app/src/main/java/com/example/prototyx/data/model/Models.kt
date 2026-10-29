@@ -9,12 +9,15 @@ data class TickerListRequest(
 
 data class RiskMeshRequest(
     val tickers: List<String>,
-    val weights: List<Double>
+    val weights: List<Double>,
+    @SerializedName("base_currency") val baseCurrency: String? = null,
+    val benchmark: String? = null
 )
 
 data class OptimizeRequest(
     val tickers: List<String>,
-    val views: Map<String, Double>? = null
+    val views: Map<String, Double>? = null,
+    @SerializedName("base_currency") val baseCurrency: String? = null
 )
 
 data class ConsultRequest(
@@ -208,7 +211,8 @@ data class ScreenerResultItem(
 data class StressTestRequest(
     val tickers: List<String>,
     val weights: List<Double>,
-    val scenarioId: String
+    val scenarioId: String,
+    @SerializedName("base_currency") val baseCurrency: String? = null
 )
 
 data class StressTestResult(

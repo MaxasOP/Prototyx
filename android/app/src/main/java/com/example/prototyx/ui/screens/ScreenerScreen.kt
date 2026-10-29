@@ -29,8 +29,9 @@ fun ScreenerScreen(
     repository: DataRepository,
     modifier: Modifier = Modifier
 ) {
+    val appPreferences = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.prototyx.PrototyxApp).preferences
     var queryText by remember { mutableStateOf("") }
-    var userMode by remember { mutableStateOf(UserExperienceMode.PRO) }
+    var userMode by remember(appPreferences.detailed) { mutableStateOf(if(appPreferences.detailed) UserExperienceMode.PRO else UserExperienceMode.SIMPLE) }
     var results by remember { mutableStateOf<List<ScreenerResultItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -67,7 +68,7 @@ fun ScreenerScreen(
 
         ModeToggleBar(
             currentMode = userMode,
-            onModeChanged = { userMode = it }
+            onModeChanged = { userMode = it; appPreferences.updateDetailed(it == UserExperienceMode.PRO) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

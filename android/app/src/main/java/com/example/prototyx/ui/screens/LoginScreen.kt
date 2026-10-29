@@ -33,6 +33,45 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showRecovery by remember { mutableStateOf(false) }
+    var useCode by remember { mutableStateOf(false) }
+    var recoveryCode by remember { mutableStateOf("") }
+    var recoveredPassword by remember { mutableStateOf("") }
+    var repeatedPassword by remember { mutableStateOf("") }
+    var recoveryMessage by remember { mutableStateOf<String?>(null) }
+    var recoveryBusy by remember { mutableStateOf(false) }
+    if(showRecovery) AlertDialog(onDismissRequest={if(!recoveryBusy) showRecovery=false},
+        title={Text(if(useCode) "Reset password" else "Recover your account")},
+        text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Text(if(useCode) "Paste the recovery code from your email. Codes expire after 30 minutes and can be used once." else "Enter your account email to receive a secure recovery link and code.")
+            if(!useCode) OutlinedTextField(email,{email=it},label={Text("Account email")},singleLine=true)
+            else {
+                OutlinedTextField(recoveryCode,{recoveryCode=it},label={Text("Recovery code")},singleLine=true)
+                OutlinedTextField(recoveredPassword,{recoveredPassword=it},label={Text("New password")},visualTransformation=PasswordVisualTransformation(),singleLine=true)
+                OutlinedTextField(repeatedPassword,{repeatedPassword=it},label={Text("Confirm new password")},visualTransformation=PasswordVisualTransformation(),singleLine=true)
+            }
+            recoveryMessage?.let{Text(it,style=MaterialTheme.typography.bodySmall)}
+        }},
+        confirmButton={TextButton(enabled=!recoveryBusy,onClick={coroutineScope.launch {
+            recoveryBusy=true
+            try {
+                val api=com.example.prototyx.data.network.RetrofitInstance.apiService
+                if(useCode) {
+                    require(recoveredPassword==repeatedPassword && recoveredPassword.length>=8 && recoveryCode.isNotBlank()){ "Enter the code and matching passwords of at least 8 characters." }
+                    recoveryMessage=api.resetPassword(mapOf("code" to recoveryCode.trim(),"new_password" to recoveredPassword))["message"]
+                    recoveryCode="";recoveredPassword="";repeatedPassword=""
+                } else {
+                    require(email.contains("@")){"Enter your account email."}
+                    recoveryMessage=api.forgotPassword(mapOf("email" to email.trim().lowercase()))["message"]
+                }
+            } catch(e:kotlinx.coroutines.CancellationException){throw e}
+            catch(e:Exception){recoveryMessage=e.message}
+            finally{recoveryBusy=false}
+        }}){Text(if(recoveryBusy) "Working…" else if(useCode) "Reset password" else "Send recovery email")}},
+        dismissButton={Row {
+            TextButton(enabled=!recoveryBusy,onClick={useCode=!useCode;recoveryMessage=null}){Text(if(useCode) "Request email" else "Use code")}
+            TextButton(enabled=!recoveryBusy,onClick={showRecovery=false;recoveryCode="";recoveredPassword="";repeatedPassword=""}){Text("Close")}
+        }})
 
     Box(
         modifier = modifier
@@ -126,6 +165,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            if(isLoginMode) TextButton(onClick={showRecovery=true;recoveryMessage=null}) {Text("Forgot password?")}
             TextButton(
                 onClick = { isLoginMode = !isLoginMode },
                 modifier = Modifier.align(Alignment.CenterHorizontally)

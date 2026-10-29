@@ -10,4 +10,6 @@ import kotlinx.serialization.Serializable
 @Serializable data object Committee : NavKey
 @Serializable data object Earnings : NavKey
 @Serializable data object Screener : NavKey
+@Serializable data object Account : NavKey
+@Serializable data object Notifications : NavKey
 

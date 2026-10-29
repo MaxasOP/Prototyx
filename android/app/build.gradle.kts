@@ -58,6 +58,7 @@ dependencies {
   // Arch Components
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
+  implementation("androidx.work:work-runtime-ktx:2.12.0")
   implementation("androidx.appcompat:appcompat:1.7.0")
   implementation("androidx.biometric:biometric:1.2.0-alpha05")
 

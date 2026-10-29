@@ -38,6 +38,7 @@ object RetrofitInstance {
 
     private fun buildOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
+            .retryOnConnectionFailure(false)
             .addInterceptor(loggingInterceptor)
             .addInterceptor(authInterceptor)
             .connectTimeout(120, TimeUnit.SECONDS)

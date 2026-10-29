@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -48,18 +49,21 @@ import kotlinx.coroutines.launch
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
     object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Portfolio")
     object ScreenerTab : BottomBarTab(Screener, Icons.Outlined.Search, "Screener")
-    object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Settings, "Optimize")
+    object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Build, "Optimize")
     object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk")
     object Debate : BottomBarTab(Committee, Icons.AutoMirrored.Outlined.List, "Research")
-    object Transcripts : BottomBarTab(Earnings, Icons.Outlined.AccountBox, "Earnings")
+    object Transcripts : BottomBarTab(Earnings, Icons.AutoMirrored.Outlined.List, "Earnings")
 }
 
 @Composable
 fun MainNavigation(
     repository: DataRepository,
-    authManager: com.example.prototyx.data.security.AuthManager
+    authManager: com.example.prototyx.data.security.AuthManager,
+    notificationOpenEvent: Int = 0,
+    onNotificationConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val preferences = (context.applicationContext as PrototyxApp).preferences
     val coroutineScope = rememberCoroutineScope()
     val voiceManager = remember { VoiceAssistantManager(context, coroutineScope) }
     var showVoiceSheet by remember { mutableStateOf(false) }
@@ -72,8 +76,20 @@ fun MainNavigation(
 
     val startDestination = if (authManager.getToken() != null) Main else Login
     val backStack = rememberNavBackStack(startDestination)
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if(authManager.getToken()!=null) {
+            try { com.example.prototyx.data.network.RetrofitInstance.apiService.getAccount() }
+            catch(e:kotlinx.coroutines.CancellationException) { throw e }
+            catch(_:Exception) { /* Offline access remains available; a 401 clears the session. */ }
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(notificationOpenEvent, authManager.getToken()) {
+        if(notificationOpenEvent>0 && authManager.getToken()!=null) { backStack.clear();backStack.add(Main);backStack.add(Notifications);onNotificationConsumed() }
+    }
     androidx.compose.runtime.LaunchedEffect(authManager.sessionExpired) {
         if (authManager.sessionExpired) {
+            com.example.prototyx.notifications.AppNotifications.clear(context)
+            preferences.clearAccountData()
             backStack.clear()
             backStack.add(Login)
         }
@@ -106,9 +122,17 @@ fun MainNavigation(
             if (currentScreen::class != Login::class) {
                 Column(Modifier.statusBarsPadding()) {
                     Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("P/", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        if(currentScreen==Account || currentScreen==Notifications) {
+                            IconButton(onClick={backStack.removeLastOrNull()}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,contentDescription="Back") }
+                        } else Text("P/", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(10.dp))
                         Text("PROTOTYX", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { backStack.add(Notifications) }) {
+                            BadgedBox(badge = { if(preferences.inbox.any { !it.read }) Badge() }) {
+                                Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+                            }
+                        }
+                        IconButton(onClick = { backStack.add(Account) }) { Icon(Icons.Outlined.AccountCircle,contentDescription = "Account and settings") }
                         TextButton(onClick = {
                             if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) showVoiceSheet = true
                             else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
@@ -195,6 +219,8 @@ fun MainNavigation(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
+                entry<Account> { AccountScreen(repository,authManager,onSignedOut={backStack.clear();backStack.add(Login)},modifier=Modifier.padding(innerPadding)) }
+                entry<Notifications> { NotificationsScreen(modifier=Modifier.padding(innerPadding)) }
                 entry<Main> {
                     DashboardScreen(
                         repository = repository,
