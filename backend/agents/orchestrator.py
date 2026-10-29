@@ -103,7 +103,7 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     Analyze this user query: "{user_query}"
     The user's current portfolio: {user_holdings_str}
 
-    Identify the main financial asset (Stock or Crypto) and user intent.
+    Identify the primary financial asset (Stock or Crypto). If the user asks about multiple assets (e.g. comparison like "Apple or Nvidia"), pick the first one mentioned. If no asset exists at all, return "NONE".
     Return ONLY a valid JSON object with:
     {{
        "ticker": "TICKER_SYMBOL or NONE",
@@ -128,6 +128,16 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         ticker = "NONE"
         action = "none"
         weight = 0.1
+
+    # Fallback for comparison queries where ticker might be returned as 'NONE' or descriptive text
+    if ticker == "NONE" or len(ticker) > 10:
+        # Simple keyword fallback extraction from query
+        q_upper = user_query.upper()
+        if "RELIANCE" in q_upper: ticker = "RELIANCE"
+        elif "TCS" in q_upper: ticker = "TCS"
+        elif "APPLE" in q_upper or "AAPL" in q_upper: ticker = "AAPL"
+        elif "NVIDIA" in q_upper or "NVDA" in q_upper: ticker = "NVDA"
+        elif "BITCOIN" in q_upper or "BTC" in q_upper: ticker = "BTC-USD"
 
     # Execute Action Context
     action_result = ""
