@@ -4,8 +4,21 @@ import random
 
 INDIAN_BLUECHIPS = ["TCS", "RELIANCE", "INFY", "HDFCBANK", "ITC", "HINDUNILVR"]
 
+TICKER_ALIASES = {
+    "APPL": "AAPL",
+    "GOOG": "GOOGL",
+    "MSFT": "MSFT",
+    "TSLA": "TSLA",
+    "NVDA": "NVDA",
+    "META": "META",
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD"
+}
+
 def resolve_ticker(ticker: str) -> str:
     t = ticker.upper().strip()
+    if t in TICKER_ALIASES:
+        t = TICKER_ALIASES[t]
     if t.endswith(('.NS', '.BO')):
         return t
     if t in INDIAN_BLUECHIPS:

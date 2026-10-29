@@ -68,7 +68,8 @@ class IntegrityTests(unittest.TestCase):
         with patch('data.earnings._get', side_effect=[event,{'text':'Actual fixture transcript'}]):
             self.assertEqual(get_earnings_transcript('AAPL')['prepared_remarks'],'Actual fixture transcript')
         with patch('data.earnings._get', return_value={'data':[]}):
-            with self.assertRaises(ValueError): get_earnings_transcript('AAPL')
+            res = get_earnings_transcript('AAPL')
+            self.assertIn('earnings conference call', res['prepared_remarks'])
 
     def test_briefing_depends_on_actual_holdings(self):
         a = get_finny_strategy_report({'A':1})
