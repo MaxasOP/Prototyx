@@ -24,7 +24,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun OptimizerScreen(
     repository: DataRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPortfolio: () -> Unit = {},
+    onRisk: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     
@@ -41,6 +43,24 @@ fun OptimizerScreen(
     var optimizationResult by remember { mutableStateOf<OptimizeResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var confirmApply by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saved by remember { mutableStateOf(false) }
+    if (confirmApply) AlertDialog(onDismissRequest = { if (!isSaving) confirmApply = false },
+        title = { Text("Replace portfolio allocation?") },
+        text = { Text("This saves the target weights shown below and removes holdings outside this target. It does not place trades.") },
+        confirmButton = { TextButton(enabled = !isSaving, onClick = {
+            coroutineScope.launch {
+                isSaving = true
+                try {
+                    optimizationResult?.let { repository.replaceHoldings(it.weights.mapValues { weight -> weight.value.toFloat() }) }
+                    confirmApply = false; saved = true; errorMessage = null
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { confirmApply = false; errorMessage = "Could not save allocation: ${e.message}" }
+                finally { isSaving = false }
+            }
+        }) { Text(if (isSaving) "Saving…" else "Replace allocation") } },
+        dismissButton = { TextButton(enabled = !isSaving, onClick = { confirmApply = false }) { Text("Keep portfolio") } })
 
     // Sync universe with portfolio on first load
     LaunchedEffect(portfolioHoldings) {
@@ -64,9 +84,9 @@ fun OptimizerScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Allocation lab")
+                    EditorialHeading(text = "Rebalance")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Build a universe. Solve. Review the rebalance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Compare your current weights with a calculated target, then decide whether to save it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -92,7 +112,7 @@ fun OptimizerScreen(
                     OutlinedTextField(
                         value = viewInput,
                         onValueChange = { viewInput = it },
-                        label = { Text("Return (decimal)", fontSize = 11.sp) },
+                        label = { Text("Return % (optional)", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -109,14 +129,14 @@ fun OptimizerScreen(
                         onClick = {
                             val ticker = tickerInput.trim().uppercase()
                             val expectedReturn = viewInput.toDoubleOrNull()
-                            if (viewInput.isNotBlank() && (expectedReturn == null || !expectedReturn.isFinite() || expectedReturn !in -1.0..1.0)) {
-                                errorMessage = "Use a decimal return between -1 and 1."
+                            if (viewInput.isNotBlank() && (expectedReturn == null || !expectedReturn.isFinite() || expectedReturn !in -100.0..100.0)) {
+                                errorMessage = "Enter an expected return between -100% and 100%, or leave it blank."
                                 return@Button
                             }
                             if (ticker.isNotEmpty()) {
                                 if (!universe.contains(ticker)) universe = universe + ticker
                                 if (expectedReturn != null) {
-                                    views = views + (ticker to expectedReturn)
+                                    views = views + (ticker to expectedReturn / 100.0)
                                 }
                                 tickerInput = ""
                                 viewInput = ""
@@ -130,7 +150,7 @@ fun OptimizerScreen(
                     }
 
                     PrimaryButton(
-                        text = "Solve Weights",
+                        text = "Calculate target",
                         onClick = {
                             coroutineScope.launch {
                                 if (universe.isEmpty()) {
@@ -138,12 +158,13 @@ fun OptimizerScreen(
                                     return@launch
                                 }
                                 isLoading = true
+                                saved = false
                                 errorMessage = null
                                 optimizationResult = null
                                 try {
                                     optimizationResult = repository.getOptimization(universe, if (views.isNotEmpty()) views else null)
                                 } catch (e: Exception) {
-                                    errorMessage = "Solver engine unreachable: ${e.message ?: "Verify Python backend"}"
+                                    errorMessage = "Could not calculate a target. Check the assets and try again."
                                 } finally {
                                     isLoading = false
                                 }
@@ -157,7 +178,7 @@ fun OptimizerScreen(
                 if (universe.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     MetadataLabel(text = "Universe: ${universe.joinToString(", ")}")
-                    TextButton(onClick = { universe = emptyList(); views = emptyMap(); optimizationResult = null }) { Text("Clear assets and views") }
+                    TextButton(onClick = { universe = emptyList(); views = emptyMap(); optimizationResult = null; saved = false }) { Text("Clear assets and views") }
                     if (views.isNotEmpty()) {
                         Text(
                             text = "Views: ${views.map { "${it.key}=${(it.value*100).toInt()}%" }.joinToString(", ")}",
@@ -202,24 +223,25 @@ fun OptimizerScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     MetadataLabel(text = "REBALANCE")
-                    PrimaryButton(text = "Apply target allocation", onClick = {
-                        coroutineScope.launch {
-                            try { repository.replaceHoldings(res.weights.mapValues { it.value.toFloat() }); errorMessage = "Target allocation saved." }
-                            catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                            catch (e: Exception) { errorMessage = "Could not complete cloud sync: ${e.message}" }
+                    Text("Changes below are percentage points of the whole portfolio, including any unallocated share.", style = MaterialTheme.typography.bodySmall)
+                    PrimaryButton(text = "Apply target allocation", onClick = { confirmApply = true }, modifier = Modifier.fillMaxWidth())
+                    if (saved) {
+                        Text("Target allocation saved.", style = MaterialTheme.typography.bodyMedium)
+                        Row {
+                            TextButton(onClick = onPortfolio) { Text("View portfolio") }
+                            TextButton(onClick = onRisk) { Text("Check updated risk") }
                         }
-                    }, modifier = Modifier.fillMaxWidth())
+                    }
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    val totalHoldingsWeight = portfolioHoldings.values.sum().let { if (it > 0f) it else 1f }
                     (res.weights.keys + portfolioHoldings.keys).forEach { ticker ->
                         val targetWeight = res.weights[ticker] ?: 0.0
-                        val currentWeight = ((portfolioHoldings[ticker] ?: 0f) / totalHoldingsWeight).toDouble()
+                        val currentWeight = (portfolioHoldings[ticker] ?: 0f).toDouble()
                         val delta = targetWeight - currentWeight
                         val action = when {
-                            delta > 0.02 -> "+${String.format("%.1f", delta * 100)}% BUY"
-                            delta < -0.02 -> "${String.format("%.1f", delta * 100)}% TRIM"
-                            else -> "HOLD"
+                            delta > 0.02 -> "+${String.format("%.1f", delta * 100)} pp"
+                            delta < -0.02 -> "${String.format("%.1f", delta * 100)} pp"
+                            else -> "Within 2 pp"
                         }
                         val actionColor = when {
                             delta > 0.02 -> Color(0xFF2E7D32)

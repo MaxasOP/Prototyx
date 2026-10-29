@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,10 +28,13 @@ import com.example.prototyx.ui.components.ModeToggleBar
 @Composable
 fun ScreenerScreen(
     repository: DataRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onResearch: (String) -> Unit = {},
+    onEarnings: (String) -> Unit = {},
+    onAddHolding: (String) -> Unit = {}
 ) {
     val appPreferences = (androidx.compose.ui.platform.LocalContext.current.applicationContext as com.example.prototyx.PrototyxApp).preferences
-    var queryText by remember { mutableStateOf("") }
+    var queryText by rememberSaveable { mutableStateOf("") }
     var userMode by remember(appPreferences.detailed) { mutableStateOf(if(appPreferences.detailed) UserExperienceMode.PRO else UserExperienceMode.SIMPLE) }
     var results by remember { mutableStateOf<List<ScreenerResultItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -51,9 +55,7 @@ fun ScreenerScreen(
 
     val presetQueries = listOf(
         "TCS",
-        "AAPL",
-        "Undervalued large caps",
-        "Low RSI momentum"
+        "AAPL"
     )
 
     Column(
@@ -61,8 +63,8 @@ fun ScreenerScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        EditorialHeading(text = "Equity screen")
-        MetadataLabel(text = "SEARCH THE SUPPORTED COMPANY CATALOG")
+        EditorialHeading(text = "Explore")
+        Text("Find a company. Review the evidence. Decide what belongs in your portfolio.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -121,7 +123,7 @@ fun ScreenerScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(results) { item ->
-                    ScreenerResultCard(item = item, userMode = userMode)
+                    ScreenerResultCard(item = item, userMode = userMode, onResearch = { onResearch(item.ticker) }, onEarnings = { onEarnings(item.ticker) }, onAddHolding = { onAddHolding(item.ticker) })
                 }
             }
         }
@@ -129,7 +131,7 @@ fun ScreenerScreen(
 }
 
 @Composable
-fun ScreenerResultCard(item: ScreenerResultItem, userMode: UserExperienceMode) {
+fun ScreenerResultCard(item: ScreenerResultItem, userMode: UserExperienceMode, onResearch: () -> Unit = {}, onEarnings: () -> Unit = {}, onAddHolding: () -> Unit = {}) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -156,5 +158,10 @@ fun ScreenerResultCard(item: ScreenerResultItem, userMode: UserExperienceMode) {
         }
         Text(if (userMode == UserExperienceMode.SIMPLE) item.plainEnglishSummary else item.aiAnalysis,
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onResearch, modifier = Modifier.weight(1f)) { Text("Research") }
+            TextButton(onClick = onEarnings, modifier = Modifier.weight(1f)) { Text("Earnings") }
+            TextButton(onClick = onAddHolding, modifier = Modifier.weight(1f)) { Text("Allocate") }
+        }
     }
 }

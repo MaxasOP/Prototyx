@@ -19,7 +19,7 @@ class MainScreenTest {
 
     @Test fun optimizerShowsResultsForSelectedAssets() {
         rule.setContent { PrototyxTheme { OptimizerScreen(MockDataRepository()) } }
-        rule.onNodeWithText("Solve Weights").performScrollTo().performClick()
+        rule.onNodeWithText("Calculate target").performScrollTo().performClick()
         rule.onNodeWithText("Apply target allocation").performScrollTo().assertExists()
     }
 

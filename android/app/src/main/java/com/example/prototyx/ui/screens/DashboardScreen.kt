@@ -33,13 +33,6 @@ import com.example.prototyx.theme.Coral
 import com.example.prototyx.ui.components.*
 import kotlinx.coroutines.launch
 
-data class PresetBasket(
-    val title: String,
-    val icon: String,
-    val subtitle: String,
-    val holdings: Map<String, Float>
-)
-
 data class PortfolioHealthReport(
     val score: Int,
     val status: String,
@@ -53,7 +46,13 @@ fun DashboardScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     authManager: com.example.prototyx.data.security.AuthManager? = null,
-    onVoiceTap: () -> Unit = {}
+    onVoiceTap: () -> Unit = {},
+    onExplore: () -> Unit = {},
+    onResearch: (String) -> Unit = {},
+    onEarnings: (String) -> Unit = {},
+    onRisk: () -> Unit = {},
+    onOptimize: () -> Unit = {},
+    onEditHolding: (String) -> Unit = {}
 ) {
     var showDisclaimer by remember { mutableStateOf(authManager?.hasAcceptedDisclaimer() == false) }
 
@@ -95,7 +94,6 @@ fun DashboardScreen(
     var newsError by remember { mutableStateOf<String?>(null) }
     var newsRefresh by remember { mutableIntStateOf(0) }
     var showEditor by remember { mutableStateOf(false) }
-    var pendingBasket by remember { mutableStateOf<PresetBasket?>(null) }
 
     LaunchedEffect(activeTickers, newsRefresh) {
         newsFeed = emptyList()
@@ -139,37 +137,14 @@ fun DashboardScreen(
         }
     }
 
-    val demoBaskets = remember {
-        listOf(
-            PresetBasket("Technology", "", "Growth", mapOf("NVDA" to 0.35f, "AAPL" to 0.35f, "MSFT" to 0.30f)),
-            PresetBasket("Core India", "", "Balanced", mapOf("RELIANCE" to 0.40f, "TCS" to 0.30f, "HDFCBANK" to 0.30f)),
-            PresetBasket("Defensive", "", "Income", mapOf("ITC" to 0.40f, "HINDUNILVR" to 0.35f, "TCS" to 0.25f))
-        )
-    }
-
     val palette = listOf(Color(0xFF344D35), Color(0xFF8F9C78), Color(0xFFC0A879), Color(0xFF697F85))
     val invested = holdings.values.sum()
-    if (pendingBasket != null) {
-        val basket = pendingBasket!!
-        AlertDialog(onDismissRequest = { pendingBasket = null },
-            title = { Text("Use ${basket.title}?") },
-            text = { Text("This replaces your current allocation with the model weights. It does not place trades.") },
-            confirmButton = { TextButton(onClick = {
-                pendingBasket = null
-                coroutineScope.launch {
-                    try { repository.replaceHoldings(basket.holdings); selectedTicker = basket.holdings.keys.first() }
-                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                    catch (e: Exception) { syncError = e.message }
-                }
-            }) { Text("Replace allocation") } },
-            dismissButton = { TextButton(onClick = { pendingBasket = null }) { Text("Keep portfolio") } })
-    }
     LazyColumn(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Portfolio", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                EditorialHeading("Portfolio", modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     coroutineScope.launch {
                         isSyncing = true
@@ -186,10 +161,10 @@ fun DashboardScreen(
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                MetadataLabel("ALLOCATION / INVESTED CAPITAL")
+                MetadataLabel("TRACKED ALLOCATION")
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(String.format("%.0f", invested * 100), fontSize = 54.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        letterSpacing = (-3).sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text(String.format("%.0f", invested * 100), fontSize = 38.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        letterSpacing = (-1).sp, color = MaterialTheme.colorScheme.onSurface)
                     Text("%", fontSize = 24.sp, modifier = Modifier.padding(bottom = 9.dp))
                     Spacer(Modifier.weight(1f))
                     Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 9.dp)) {
@@ -223,24 +198,34 @@ fun DashboardScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 }
-                if (holdings.isEmpty()) Text("No holdings yet. Add an allocation or choose a model below.", style = MaterialTheme.typography.bodyMedium)
+                if (holdings.isEmpty()) {
+                    Text("Build your first portfolio", style = MaterialTheme.typography.titleLarge)
+                    Text("Find a company, review its business, then choose an allocation. Your portfolio tracks weights; it does not place trades.", style = MaterialTheme.typography.bodyMedium)
+                    PrimaryButton("Find a company", onClick = onExplore, modifier = Modifier.fillMaxWidth())
+                } else {
+                    Row {
+                        TextButton(onClick = onExplore) { Text("Add company") }
+                        TextButton(onClick = onRisk) { Text("Check risk") }
+                        TextButton(onClick = onOptimize) { Text("Rebalance") }
+                    }
+                }
             }
         }
-        if (showEditor || holdings.isEmpty()) item {
+        if (showEditor) item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionHeader("Edit allocation", supportingText = "Decimal weight: 0.2 = 20%. Use 0 to remove.")
+                SectionHeader("Edit allocation", supportingText = "Enter a percentage, e.g. 20 for 20%. Use 0 to remove.")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(searchQuery, { searchQuery = it }, label = { Text("Ticker") }, modifier = Modifier.weight(1f), singleLine = true)
-                    OutlinedTextField(searchWeight, { searchWeight = it }, label = { Text("Weight") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(searchWeight, { searchWeight = it }, label = { Text("Weight (%)") }, modifier = Modifier.weight(1f), singleLine = true)
                 }
                 PrimaryButton("Save allocation", onClick = {
                     val ticker = searchQuery.trim().uppercase()
                     val weight = searchWeight.toFloatOrNull()
-                    if (ticker.isBlank() || weight == null || !weight.isFinite() || weight !in 0f..1f) {
-                        searchError = "Enter a ticker and a decimal weight from 0 to 1."
+                    if (ticker.isBlank() || weight == null || !weight.isFinite() || weight !in 0f..100f) {
+                        searchError = "Enter a ticker and a percentage from 0 to 100."
                     } else coroutineScope.launch {
                         try {
-                            if (weight == 0f) repository.removeHolding(ticker) else repository.updateHolding(ticker, weight)
+                            if (weight == 0f) repository.removeHolding(ticker) else repository.updateHolding(ticker, weight / 100f)
                             searchQuery = ""; searchWeight = ""; searchError = null
                         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                         catch (e: Exception) { searchError = e.message }
@@ -250,24 +235,17 @@ fun DashboardScreen(
         }
         if (syncError != null || searchError != null) item { StatusMessage(syncError ?: searchError.orEmpty(), isError = true) }
         if (selectedTicker.isNotEmpty()) item {
+            Text(selectedTicker, style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { onResearch(selectedTicker) }) { Text("Research") }
+                TextButton(onClick = { onEarnings(selectedTicker) }) { Text("Earnings") }
+                TextButton(onClick = { onEditHolding(selectedTicker) }) { Text("Allocation") }
+            }
             if (isLoading) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Text("Loading $selectedTicker price history…", style = MaterialTheme.typography.bodySmall)
             }
             chartData?.let { data -> StockChartView(data.ticker, data.pricePoints, selectedPeriod = chartPeriod, onPeriodChanged = { chartPeriod = it }) }
-        }
-        item {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(18.dp))
-            SectionHeader("Model allocations", supportingText = "Reference weights. Selecting a model replaces your holdings.")
-            demoBaskets.forEach { basket ->
-                Row(Modifier.fillMaxWidth().clickable { pendingBasket = basket }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(basket.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text(basket.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("   →", color = MaterialTheme.colorScheme.primary)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

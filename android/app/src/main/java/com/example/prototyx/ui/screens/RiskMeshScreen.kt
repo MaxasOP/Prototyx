@@ -24,7 +24,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun RiskMeshScreen(
     repository: DataRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOptimize: () -> Unit = {},
+    onExplore: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val portfolioHoldings by repository.holdings.collectAsState(initial = emptyMap())
@@ -59,7 +61,7 @@ fun RiskMeshScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Risk study")
+                    EditorialHeading(text = "Risk")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Historical relationships. Observed drawdowns.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -67,6 +69,14 @@ fun RiskMeshScreen(
         }
 
         item(key = "config_card") {
+            if (portfolioHoldings.isEmpty()) {
+                Text("Add holdings to assess your portfolio, or build a temporary basket below.", style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onExplore) { Text("Explore companies") }
+            } else {
+                Text("Start with your saved portfolio. Changes here are a temporary scenario.", style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { meshHoldings = portfolioHoldings.mapValues { it.value.toDouble() }; riskMeshResult = null; stressTestResult = null }) { Text("Reset to my portfolio") }
+            }
+            TextButton(onClick = onOptimize) { Text("Review target allocations") }
             DoubleBezelCard {
                 MetadataLabel(text = "Asset Configuration")
                 Spacer(modifier = Modifier.height(16.dp))
@@ -86,7 +96,7 @@ fun RiskMeshScreen(
                     OutlinedTextField(
                         value = weightInput,
                         onValueChange = { weightInput = it },
-                        label = { Text("Weight", fontSize = 11.sp) },
+                        label = { Text("Weight (%)", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -102,15 +112,17 @@ fun RiskMeshScreen(
                     Button(
                         onClick = {
                             val ticker = tickerInput.trim().uppercase()
-                            val weight = weightInput.toDoubleOrNull()
-                            if (weight == null || !weight.isFinite() || weight < 0 || weight > 1) {
-                                errorMessage = "Enter a finite decimal weight from 0 to 1."
+                            val weight = weightInput.toDoubleOrNull()?.div(100.0)
+                            if (ticker.isBlank() || weight == null || !weight.isFinite() || weight < 0 || weight > 1) {
+                                errorMessage = "Enter a ticker and a percentage from 0 to 100."
                                 return@Button
                             }
                             if (ticker.isNotEmpty()) {
                                 val newHoldings = meshHoldings.toMutableMap()
                                 if (weight > 0) newHoldings[ticker] = weight else newHoldings.remove(ticker)
+                                if (newHoldings.values.sum() > 1.00001) { errorMessage = "Total scenario allocation cannot exceed 100%."; return@Button }
                                 meshHoldings = newHoldings
+                                riskMeshResult = null; stressTestResult = null; errorMessage = null
                                 tickerInput = ""
                                 weightInput = ""
                             }

@@ -38,13 +38,16 @@ enum class CommitteeView {
 @Composable
 fun CommitteeScreen(
     repository: DataRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialTicker: String = "",
+    onEarnings: (String) -> Unit = {},
+    onAddHolding: (String) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var currentView by remember { mutableStateOf(CommitteeView.Selection) }
+    var currentView by remember(initialTicker) { mutableStateOf(if (initialTicker.isBlank()) CommitteeView.Selection else CommitteeView.Consultation) }
     
-    var inputTickers by remember { mutableStateOf("") }
-    var userQuery by remember { mutableStateOf("") }
+    var inputTickers by remember(initialTicker) { mutableStateOf(initialTicker) }
+    var userQuery by remember(initialTicker) { mutableStateOf(if (initialTicker.isBlank()) "" else "What are the investment case, valuation risks and key uncertainties for $initialTicker?") }
     
     var debateResult by remember { mutableStateOf<DebateResponse?>(null) }
     var consultResult by remember { mutableStateOf<ConsultResponse?>(null) }
@@ -55,7 +58,7 @@ fun CommitteeScreen(
 
     val viewsList = remember(debateResult) { debateResult?.impliedViews?.toList() ?: emptyList() }
 
-    BackHandler(enabled = currentView != CommitteeView.Selection) {
+    BackHandler(enabled = initialTicker.isBlank() && currentView != CommitteeView.Selection) {
         currentView = CommitteeView.Selection
     }
 
@@ -72,7 +75,7 @@ fun CommitteeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (currentView != CommitteeView.Selection) {
+                    if (initialTicker.isBlank() && currentView != CommitteeView.Selection) {
                         IconButton(
                             onClick = { currentView = CommitteeView.Selection },
                             modifier = Modifier.padding(end = 8.dp)
@@ -94,7 +97,19 @@ fun CommitteeScreen(
             }
         }
 
+        if (initialTicker.isNotBlank()) item(key = "company_actions") {
+            Column {
+                MetadataLabel(initialTicker)
+                Row {
+                    TextButton(onClick = { onEarnings(initialTicker) }) { Text("Read earnings") }
+                    TextButton(onClick = { onAddHolding(initialTicker) }) { Text("Set allocation") }
+                }
+            }
+        }
         if (currentView == CommitteeView.Selection) {
+            item(key = "earnings_entry") {
+                SelectionTile(title = "Read company earnings", description = "Open the original earnings-call transcript for a company and fiscal period.", onClick = { onEarnings("") })
+            }
             item(key = "tile_consult") {
                 SelectionTile(
                     title = "Research a thesis",

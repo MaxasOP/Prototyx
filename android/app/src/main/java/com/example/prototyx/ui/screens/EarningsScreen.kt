@@ -23,12 +23,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun EarningsScreen(
     repository: DataRepository,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialTicker: String = "",
+    onResearch: (String) -> Unit = {},
+    onAddHolding: (String) -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var tickerInput by remember { mutableStateOf("") }
-    var yearInput by remember { mutableStateOf("2026") }
-    var quarterInput by remember { mutableStateOf("3") }
+    var tickerInput by remember(initialTicker) { mutableStateOf(initialTicker) }
+    val previousQuarter = remember { java.util.Calendar.getInstance().apply { add(java.util.Calendar.MONTH, -3) } }
+    var yearInput by remember { mutableStateOf(previousQuarter.get(java.util.Calendar.YEAR).toString()) }
+    var quarterInput by remember { mutableStateOf((previousQuarter.get(java.util.Calendar.MONTH) / 3 + 1).toString()) }
     
     var transcriptResult by remember { mutableStateOf<EarningsTranscriptResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -46,6 +50,7 @@ fun EarningsScreen(
                 EditorialHeading(text = "Earnings")
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("The source record. Management in their own words.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Choose the company's fiscal period; it may differ from the calendar quarter.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -106,6 +111,10 @@ fun EarningsScreen(
         transcriptResult?.let { res ->
             item(key = "header_info") {
                 Column {
+                    Row {
+                        TextButton(onClick = { onResearch(res.ticker) }) { Text("Research ${res.ticker}") }
+                        TextButton(onClick = { onAddHolding(res.ticker) }) { Text("Set allocation") }
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         EditorialHeading(text = res.companyName)
                         Spacer(modifier = Modifier.width(8.dp))

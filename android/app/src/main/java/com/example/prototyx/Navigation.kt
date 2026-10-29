@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
 
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
     object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Portfolio")
-    object ScreenerTab : BottomBarTab(Screener, Icons.Outlined.Search, "Screener")
+    object ScreenerTab : BottomBarTab(Screener, Icons.Outlined.Search, "Explore")
     object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Build, "Optimize")
     object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk")
     object Debate : BottomBarTab(Committee, ResearchNavigationIcon, "Research")
@@ -66,6 +66,8 @@ fun MainNavigation(
     val coroutineScope = rememberCoroutineScope()
     val voiceManager = remember { VoiceAssistantManager(context, coroutineScope) }
     var showVoiceSheet by remember { mutableStateOf(false) }
+    var allocationTicker by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -87,6 +89,7 @@ fun MainNavigation(
     }
     androidx.compose.runtime.LaunchedEffect(authManager.sessionExpired) {
         if (authManager.sessionExpired) {
+            allocationTicker = null
             com.example.prototyx.notifications.AppNotifications.clear(context)
             preferences.clearAccountData()
             backStack.clear()
@@ -97,10 +100,8 @@ fun MainNavigation(
     val tabs = listOf(
         BottomBarTab.Dashboard,
         BottomBarTab.ScreenerTab,
-        BottomBarTab.Optimize,
-        BottomBarTab.Risk,
         BottomBarTab.Debate,
-        BottomBarTab.Transcripts
+        BottomBarTab.Risk
     )
 
     val currentScreen = backStack.lastOrNull() ?: Main
@@ -116,12 +117,13 @@ fun MainNavigation(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             if (currentScreen::class != Login::class) {
                 Column(Modifier.statusBarsPadding()) {
                     Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if(currentScreen==Account || currentScreen==Notifications) {
+                        if(currentScreen==Account || currentScreen==Notifications || currentScreen==Optimizer || currentScreen==Earnings || currentScreen is ResearchCompany || currentScreen is CompanyEarnings) {
                             IconButton(onClick={backStack.removeLastOrNull()}) { Icon(Icons.AutoMirrored.Outlined.ArrowBack,contentDescription="Back") }
                         } else Text("P/", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(10.dp))
@@ -152,7 +154,9 @@ fun MainNavigation(
                     tonalElevation = 0.dp
                 ) {
                     tabs.forEach { tab ->
-                        val isSelected = currentScreen::class == tab.route::class
+                        val isSelected = currentScreen::class == tab.route::class ||
+                            (tab.route == Committee && (currentScreen is ResearchCompany || currentScreen is CompanyEarnings || currentScreen == Earnings)) ||
+                            (tab.route == RiskMesh && currentScreen == Optimizer)
                         NavigationBarItem(
                             selected = isSelected,
                             onClick = {
@@ -188,6 +192,18 @@ fun MainNavigation(
             }
         }
     ) { innerPadding ->
+        allocationTicker?.let { ticker ->
+            com.example.prototyx.ui.components.AllocationDialog(ticker, repository,
+                onDismiss = { allocationTicker = null },
+                onSaved = {
+                    allocationTicker = null
+                    coroutineScope.launch {
+                        if (snackbar.showSnackbar("$ticker allocation saved", "View portfolio") == SnackbarResult.ActionPerformed) {
+                            backStack.clear(); backStack.add(Main)
+                        }
+                    }
+                })
+        }
         if (showVoiceSheet) {
             VoiceCoPilotSheet(
                 voiceManager = voiceManager,
@@ -230,23 +246,42 @@ fun MainNavigation(
                             backStack.add(Login)
                         },
                         onVoiceTap = { showVoiceSheet = true },
+                        onExplore = { backStack.add(Screener) },
+                        onResearch = { backStack.add(ResearchCompany(it)) },
+                        onEarnings = { backStack.add(CompanyEarnings(it)) },
+                        onRisk = { backStack.add(RiskMesh) },
+                        onOptimize = { backStack.add(Optimizer) },
+                        onEditHolding = { allocationTicker = it },
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
                 entry<Screener> {
-                    ScreenerScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    ScreenerScreen(repository = repository, modifier = Modifier.padding(innerPadding),
+                        onResearch = { backStack.add(ResearchCompany(it)) },
+                        onEarnings = { backStack.add(CompanyEarnings(it)) },
+                        onAddHolding = { allocationTicker = it })
                 }
                 entry<Optimizer> {
-                    OptimizerScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    OptimizerScreen(repository = repository, modifier = Modifier.padding(innerPadding),
+                        onPortfolio = { backStack.clear(); backStack.add(Main) },
+                        onRisk = { backStack.clear(); backStack.add(RiskMesh) })
                 }
                 entry<RiskMesh> {
-                    RiskMeshScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    RiskMeshScreen(repository = repository, modifier = Modifier.padding(innerPadding), onOptimize = { backStack.add(Optimizer) }, onExplore = { backStack.add(Screener) })
                 }
                 entry<Committee> {
-                    CommitteeScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    CommitteeScreen(repository = repository, modifier = Modifier.padding(innerPadding), onEarnings = { backStack.add(CompanyEarnings(it)) }, onAddHolding = { allocationTicker = it })
                 }
                 entry<Earnings> {
-                    EarningsScreen(repository = repository, modifier = Modifier.padding(innerPadding))
+                    EarningsScreen(repository = repository, modifier = Modifier.padding(innerPadding), onResearch = { backStack.add(ResearchCompany(it)) }, onAddHolding = { allocationTicker = it })
+                }
+                entry<ResearchCompany> { route ->
+                    CommitteeScreen(repository, Modifier.padding(innerPadding), initialTicker = route.ticker,
+                        onEarnings = { backStack.add(CompanyEarnings(it)) }, onAddHolding = { allocationTicker = it })
+                }
+                entry<CompanyEarnings> { route ->
+                    EarningsScreen(repository, Modifier.padding(innerPadding), initialTicker = route.ticker,
+                        onResearch = { backStack.add(ResearchCompany(it)) }, onAddHolding = { allocationTicker = it })
                 }
             }
         )

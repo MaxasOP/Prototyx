@@ -12,4 +12,6 @@ import kotlinx.serialization.Serializable
 @Serializable data object Screener : NavKey
 @Serializable data object Account : NavKey
 @Serializable data object Notifications : NavKey
+@Serializable data class ResearchCompany(val ticker: String) : NavKey
+@Serializable data class CompanyEarnings(val ticker: String) : NavKey
 
