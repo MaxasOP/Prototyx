@@ -1,41 +1,29 @@
-from typing import Dict, List, Any, Optional
-import random
+"""Validated historical long-only minimum-variance allocation."""
+import numpy as np
+from scipy.optimize import minimize
+from quant.history import returns_for
 
-def optimize_portfolio_mvo(tickers: List[str], views: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
-    """
-    Simulates Mean-Variance Optimization using local statistical logic.
-    No external data used.
-    """
-    clean_tickers = [t.upper().strip().replace(".NS", "").replace(".BO", "") for t in tickers]
-    n = len(clean_tickers)
+def optimize_portfolio_mvo(tickers, views=None):
+    r = returns_for(tickers)
+    names = list(r.columns)
+    mean = r.mean().to_numpy()*252
+    covariance = r.cov().to_numpy()*252
+    if views:
+        if any(t not in names or not np.isfinite(v) or abs(v)>1 for t,v in views.items()):
+            raise ValueError('Views must be finite decimal annual returns between -1 and 1')
+        mean = np.array([views.get(t, mean[i]) for i,t in enumerate(names)])
+    fit = minimize(lambda w: float(w@covariance@w), np.ones(len(names))/len(names),
+                   bounds=[(0,1)]*len(names), constraints=[{'type':'eq','fun':lambda w:w.sum()-1}],
+                   method='SLSQP', options={'ftol':1e-12})
+    if not fit.success: raise ValueError('No feasible allocation found')
+    w = fit.x
+    vol = float(np.sqrt(w@covariance@w))
+    ret = float(w@mean)
+    return {'weights':dict(zip(names,w.tolist())), 'expected_annual_return':ret,
+            'annual_volatility':vol, 'sharpe_ratio':ret/vol if vol else 0,
+            'method':'Historical minimum variance (long only)',
+            'ai_rationale':'Adjusted daily prices; annualized using 252 sessions. Sharpe assumes zero risk-free rate. Views change return estimates, not minimum-variance weights. Estimates are not forecasts.',
+            'source':'Yahoo Finance historical prices', 'asOf':str(r.index[-1]), 'observations':len(r)}
 
-    # Generate balanced weights based on an equal weighting baseline with small random noise
-    weights = {}
-    remaining = 1.0
-    for i in range(n - 1):
-        # Base weight + small noise (-2% to +2%)
-        w = round((1.0 / n) + random.uniform(-0.02, 0.02), 4)
-        weights[clean_tickers[i]] = w
-        remaining -= w
-    weights[clean_tickers[-1]] = round(remaining, 4)
-
-    from agents.committee import generate_optimizer_rationale
-    rationale = generate_optimizer_rationale(weights, views)
-
-    return {
-        "weights": weights,
-        "expected_annual_return": 0.142,
-        "annual_volatility": 0.118,
-        "sharpe_ratio": 1.20,
-        "method": "Local Strategic Optimization (Offline)",
-        "ai_rationale": rationale,
-        "source": "Local Statistical Model"
-    }
-
-def optimize_portfolio_black_litterman(tickers: List[str], views: Dict[str, float]) -> Dict[str, Any]:
-    """
-    Uses local return views to adjust weights.
-    """
-    # Simply use the MVO result for now, as Black-Litterman requires S matrix
-    # which we've moved to a static model in Risk Mesh.
-    return optimize_portfolio_mvo(tickers, views)
+def optimize_portfolio_black_litterman(tickers, views):
+    raise ValueError('Black-Litterman is not implemented')

@@ -1,30 +1,54 @@
 import os
-from typing import Dict, Any
+from urllib.parse import quote
+import requests
 
-def get_earnings_transcript(ticker: str, year: int = 2026, quarter: int = 3) -> Dict[str, Any]:
-    """
-    Retrieves the earnings call transcript synthesis via AI Ingestion.
-    """
-    ticker_clean = ticker.upper().strip().replace(".NS", "").replace(".BO", "")
-    
-    # Prioritize Live API if user has a key, otherwise fallback to AI Synthesis
-    try:
-        import earningscall
-        if os.environ.get("EARNINGSCALL_API_KEY"):
-            company = earningscall.get_company(ticker_clean.lower())
-            transcript = company.get_transcript(year=year, quarter=quarter)
-            text = transcript.text
-            data = {
-                "ticker": ticker_clean,
-                "company_name": company.name if hasattr(company, "name") else ticker_clean,
-                "quarter": f"Q{quarter} {year}",
-                "prepared_remarks": text[:5000],
-                "qa_session": "Q&A parsed in full summary."
-            }
-            from agents.committee import summarize_earnings_llm
-            return summarize_earnings_llm(ticker_clean, data)
-    except: pass
+BASE_URL = 'https://api.roic.ai/v3.0.0'
 
-    # AI-Ingestion Synthesis (Real-world knowledge based)
-    from agents.committee import generate_earnings_transcript_llm
-    return generate_earnings_transcript_llm(ticker_clean, year, quarter)
+def _get(path, params=None):
+    key = os.getenv('ROIC_API_KEY')
+    if not key:
+        raise RuntimeError('Set ROIC_API_KEY in the backend environment')
+    response = requests.get(BASE_URL + path, params=params,
+                            headers={'Authorization': 'Bearer ' + key}, timeout=15)
+    if response.status_code in (401, 403):
+        raise RuntimeError('ROIC credentials were rejected')
+    if response.status_code == 402:
+        raise RuntimeError('This transcript is outside the ROIC plan entitlement')
+    if not response.ok:
+        raise RuntimeError('ROIC request failed (HTTP %s)' % response.status_code)
+    return response.json()
+
+def get_earnings_transcript(ticker, year=2026, quarter=3):
+    if not ticker.strip() or quarter not in range(1,5):
+        raise ValueError('Provide a ticker and quarter from 1 to 4')
+    identifier = ticker.strip().upper()
+    # Bare symbols can be ambiguous across exchanges; only resolve known listings.
+    listings = {'AAPL':'NASDAQ:AAPL', 'MSFT':'NASDAQ:MSFT', 'NVDA':'NASDAQ:NVDA',
+                'TCS':'NSE:TCS', 'RELIANCE':'NSE:RELIANCE', 'INFY':'NSE:INFY'}
+    identifier = listings.get(identifier, identifier)
+    if ':' not in identifier:
+        raise ValueError('Use an exchange-qualified ticker, for example NASDAQ:AAPL')
+    page = _get('/company-events', {'identifier':identifier, 'content':'transcript', 'limit':100})
+    for _ in range(20):
+        for event in page.get('data', []):
+            if event.get('fiscal_year') != year or event.get('fiscal_quarter') != quarter:
+                continue
+            raw = next((t for t in event.get('transcripts', []) if t.get('type') == 'raw'), None)
+            if not raw:
+                continue
+            document = _get('/documents/transcripts/' + quote(raw['id'], safe='') + '/raw')
+            text = document.get('text')
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError('ROIC returned an empty transcript')
+            return {'ticker':identifier, 'company_name':identifier,
+                    'quarter':f'Q{quarter} {year}', 'prepared_remarks':text,
+                    'qa_session':'Included in the full raw transcript above; speaker labels are unavailable.',
+                    'source':'ROIC.ai', 'asOf':document.get('updated_at')}
+        next_url = page.get('next_page_url')
+        if not next_url:
+            break
+        # Follow only provider-relative pagination, never an arbitrary host.
+        if not next_url.startswith('/v3.0.0/company-events?'):
+            raise RuntimeError('Unexpected ROIC pagination response')
+        page = _get(next_url[len('/v3.0.0'):])
+    raise ValueError('No accessible transcript for this fiscal period; check company coverage and plan history')

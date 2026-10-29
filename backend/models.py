@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+import math
 
 # --- Database Models ---
 
@@ -30,6 +31,19 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     name: Optional[str] = None
+    @field_validator('email')
+    @classmethod
+    def valid_email(cls, value):
+        value = value.strip().lower()
+        if '@' not in value or len(value)>254:
+            raise ValueError('Enter a valid email address')
+        return value
+    @field_validator('password')
+    @classmethod
+    def valid_password(cls, value):
+        if len(value)<8 or len(value.encode('utf-8'))>72:
+            raise ValueError('Password must contain at least 8 characters and at most 72 UTF-8 bytes')
+        return value
 
 class AuthResponse(BaseModel):
     accessToken: str

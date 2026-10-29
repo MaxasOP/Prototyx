@@ -3,12 +3,12 @@ uvicorn
 yfinance
 pandas
 numpy
+scipy
 pydantic
 requests
 python-dotenv
 duckduckgo-search
 groq
-earningscall
 sqlmodel
 psycopg2-binary
 psycopg[binary]

@@ -95,6 +95,13 @@ def sync_holdings(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
+    import math
+    if any(not ticker.strip() or not math.isfinite(weight) or weight < 0 or weight > 1 for ticker, weight in request.holdings.items()):
+        raise HTTPException(status_code=422, detail="Weights must be finite decimals between 0 and 1")
+    previous = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
+    for holding in previous:
+        if holding.ticker not in request.holdings:
+            session.delete(holding)
     for ticker, weight in request.holdings.items():
         existing_holding = session.exec(
             select(Holding).where(Holding.user_id == current_user.id, Holding.ticker == ticker)
@@ -113,6 +120,11 @@ def sync_holdings(
     session.commit()
     all_holdings = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
     return {h.ticker: h.weight for h in all_holdings}
+
+@app.get('/api/holdings')
+def get_holdings(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    rows = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
+    return {h.ticker:h.weight for h in rows}
 
 # --- Market & Live Intelligence ---
 
@@ -191,10 +203,11 @@ def run_stress_test(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/finny/strategy-report")
-def get_finny_report():
+def get_finny_report(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     from data.screener_service import get_finny_strategy_report
     try:
-        return get_finny_strategy_report()
+        rows = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
+        return get_finny_strategy_report({h.ticker:h.weight for h in rows})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -219,6 +232,11 @@ async def run_consult(request: ConsultRequest):
 @app.get("/")
 def read_root():
     return {"status": "online", "secured": True, "version": "2.1.0"}
+
+@app.get('/api/status')
+def provider_status(current_user: User = Depends(get_current_user)):
+    return {'groqConfigured':bool(os.getenv('GROQ_API_KEY')), 'roicConfigured':bool(os.getenv('ROIC_API_KEY')),
+            'marketProvider':'Yahoo Finance', 'revision':os.getenv('RENDER_GIT_COMMIT','local')}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
