@@ -235,6 +235,8 @@ fun DashboardScreen(
         }
         if (syncError != null || searchError != null) item { StatusMessage(syncError ?: searchError.orEmpty(), isError = true) }
         if (selectedTicker.isNotEmpty()) item {
+            Text(selectedTicker, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
             MetadataLabel("COMPANY TOOLS")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { onResearch(selectedTicker) }) { Text("Research") }
@@ -245,7 +247,7 @@ fun DashboardScreen(
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Text("Loading $selectedTicker price history…", style = MaterialTheme.typography.bodySmall)
             }
-            chartData?.let { data -> StockChartView(data.ticker, data.pricePoints, selectedPeriod = chartPeriod, onPeriodChanged = { chartPeriod = it }) }
+            chartData?.let { data -> StockChartView(data.ticker, data.pricePoints, selectedPeriod = chartPeriod, onPeriodChanged = { chartPeriod = it }, showTicker = false) }
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

@@ -221,7 +221,6 @@ fun MainNavigation(
         }
 
         NavDisplay(
-            modifier = Modifier.padding(bottom = if (showFinny) 76.dp else 0.dp),
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             entryProvider = entryProvider {

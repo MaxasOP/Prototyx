@@ -27,7 +27,8 @@ fun StockChartView(
     modifier: Modifier = Modifier,
     isCandleStyle: Boolean = false,
     selectedPeriod: String = "1M",
-    onPeriodChanged: (String) -> Unit = {}
+    onPeriodChanged: (String) -> Unit = {},
+    showTicker: Boolean = true
 ) {
     var selectedPointIndex by remember { mutableStateOf<Int?>(null) }
     var chartVisible by remember(pricePoints) { mutableStateOf(false) }
@@ -46,7 +47,7 @@ fun StockChartView(
     DoubleBezelCard(modifier = modifier) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(ticker, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (showTicker) Text(ticker, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 MetadataLabel("ADJUSTED PRICE HISTORY")
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
