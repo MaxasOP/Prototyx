@@ -21,21 +21,8 @@ fun DoubleBezelCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = MaterialTheme.shapes.small
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = shape,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
-        ) {
-            content()
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        content()
     }
 }
 
@@ -99,7 +86,7 @@ fun BentoMetric(
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 18.sp),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             softWrap = false
@@ -118,7 +105,7 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = 52.dp),
-        shape = MaterialTheme.shapes.small,
+        shape = RoundedCornerShape(3.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -150,9 +137,9 @@ fun StatusMessage(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(0.dp))
             .background(accent.copy(alpha = .08f))
-            .border(1.dp, accent.copy(alpha = .22f), RoundedCornerShape(14.dp))
+            .border(1.dp, accent.copy(alpha = .22f), RoundedCornerShape(0.dp))
             .padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically

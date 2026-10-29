@@ -45,12 +45,12 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.Start
         ) {
-            EditorialHeading(text = "Prototyx")
+            Text("P/  PROTOTYX", style = MaterialTheme.typography.labelLarge, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
-            MetadataLabel(text = "PRIVATE WEALTH OPERATING SYSTEM")
+            MetadataLabel(text = "INVESTMENT RESEARCH / PERSONAL LEDGER")
             
             Spacer(modifier = Modifier.height(32.dp))
-            Text(if (isLoginMode) "Return to your research." else "Build your investment workspace.", style = MaterialTheme.typography.headlineLarge)
+            Text(if (isLoginMode) "A considered view\nof your capital." else "Start your\ninvestment ledger.", style = MaterialTheme.typography.headlineLarge)
             Spacer(modifier = Modifier.height(12.dp))
             Text("Portfolio allocation, market research and risk analysis in one place.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(24.dp))

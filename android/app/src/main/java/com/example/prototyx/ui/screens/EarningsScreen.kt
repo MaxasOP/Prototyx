@@ -38,21 +38,21 @@ fun EarningsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item(key = "heading") {
             Column {
                 EditorialHeading(text = "Earnings")
                 Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "MANAGEMENT COMMENTARY AND ANALYST QUESTIONS")
+                Text("The source record. Management in their own words.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         item(key = "input_card") {
             DoubleBezelCard {
                 MetadataLabel(text = "Asset Selection")
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 OutlinedTextField(
                     value = tickerInput,
@@ -65,7 +65,7 @@ fun EarningsScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(yearInput, { yearInput = it }, label = { Text("Fiscal year") }, modifier = Modifier.weight(1f), singleLine = true)
@@ -120,15 +120,15 @@ fun EarningsScreen(
 
             // Raw Data Section
             item(key = "raw_remarks_header") {
-                MetadataLabel(text = "Corporate Guidance (Raw)")
+                MetadataLabel(text = "Full transcript / ROIC.ai")
             }
 
             item(key = "raw_remarks") {
                 DoubleBezelCard {
                     Text(
                         text = res.preparedRemarks,
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
+                        fontSize = 16.sp,
+                        lineHeight = 25.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

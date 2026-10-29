@@ -31,12 +31,19 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF176B4E), onPrimary = Color.White,
-    secondary = Color(0xFF006781),
-    background = Color(0xFFF4F5F7), onBackground = Color(0xFF111318),
-    surface = Color.White, onSurface = Color(0xFF111318),
-    surfaceVariant = Color(0xFFEBEDF1), onSurfaceVariant = Color(0xFF5E6673),
-    outline = Color(0xFFD7DAE0), error = Color(0xFFB42335)
+    primary = Color(0xFF344D35), onPrimary = Color(0xFFFAF8F1),
+    primaryContainer = Color(0xFFE4E9DB), onPrimaryContainer = Color(0xFF263B27),
+    secondary = Color(0xFF685F4C), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFEAE5D9), onSecondaryContainer = Color(0xFF292B25),
+    tertiary = Color(0xFF356546), onTertiary = Color.White,
+    background = Color(0xFFF6F3EB), onBackground = Color(0xFF252923),
+    surface = Color(0xFFF6F3EB), onSurface = Color(0xFF252923),
+    surfaceVariant = Color(0xFFECE8DD), onSurfaceVariant = Color(0xFF65695E),
+    surfaceContainerLowest = Color(0xFFFCFAF5), surfaceContainerLow = Color(0xFFF2EEE4),
+    surfaceContainer = Color(0xFFECE8DD), surfaceContainerHigh = Color(0xFFE6E2D6),
+    surfaceContainerHighest = Color(0xFFDEDACD),
+    outline = Color(0xFF878B7D), outlineVariant = Color(0xFFD2D3C5),
+    error = Color(0xFFA23E31), onError = Color.White
 )
 
 val PrototyxShapes = Shapes(
@@ -47,7 +54,7 @@ val PrototyxShapes = Shapes(
 
 @Composable
 fun PrototyxTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

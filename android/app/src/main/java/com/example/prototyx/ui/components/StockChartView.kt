@@ -35,7 +35,7 @@ fun StockChartView(
     val revealProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (chartVisible) 1f else 0f,
         animationSpec = androidx.compose.animation.core.tween(
-            durationMillis = 850,
+            durationMillis = 220,
             easing = androidx.compose.animation.core.FastOutSlowInEasing
         ),
         label = "chart_reveal"
@@ -45,36 +45,20 @@ fun StockChartView(
 
     DoubleBezelCard(modifier = modifier) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header with Price & Ticker
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = ticker,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    MetadataLabel(text = "PRICE HISTORY")
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    periods.forEach { p ->
-                        FilterChip(
-                            selected = (selectedPeriod == p),
-                            onClick = { selectedPointIndex = null; onPeriodChanged(p) },
-                            label = { Text(p, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                            modifier = Modifier.height(28.dp)
-                        )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(ticker, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                MetadataLabel("ADJUSTED PRICE HISTORY")
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                periods.forEach { p ->
+                    TextButton(onClick = { selectedPointIndex = null; onPeriodChanged(p) },
+                        colors = ButtonDefaults.textButtonColors(contentColor = if (selectedPeriod == p) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        Text(p, fontSize = 12.sp, fontWeight = if (selectedPeriod == p) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(12.dp))
             // Canvas Area
             if (pricePoints.isEmpty()) {
                 Box(
@@ -169,11 +153,7 @@ fun StockChartView(
                             }
                         }
 
-                        drawPath(
-                            path = path,
-                            color = lineColor.copy(alpha = .13f),
-                            style = Stroke(width = 9.dp.toPx())
-                        )
+
                         drawPath(
                             path = path,
                             color = lineColor,

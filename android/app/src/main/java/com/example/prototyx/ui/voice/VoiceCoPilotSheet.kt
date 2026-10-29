@@ -93,7 +93,7 @@ fun VoiceCoPilotSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "FINNY VOICE CO-PILOT",
+                            text = "FINNY / RESEARCH",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp,
@@ -102,7 +102,7 @@ fun VoiceCoPilotSheet(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Ask about your portfolio",
+                        text = "Ask about a security",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -123,16 +123,16 @@ fun VoiceCoPilotSheet(
             // Main Microphone Orb
             Box(
                 modifier = Modifier
-                    .size(90.dp)
+                    .size(64.dp)
                     .scale(pulseScale)
                     .background(
                         color = when {
-                            voiceManager.isListening -> Color(0xFFE53935)
-                            voiceManager.isSpeaking -> Color(0xFF2E7D32)
-                            voiceManager.isThinking -> Color(0xFF1F6C9F)
+                            voiceManager.isListening -> MaterialTheme.colorScheme.error
+                            voiceManager.isSpeaking -> MaterialTheme.colorScheme.tertiary
+                            voiceManager.isThinking -> MaterialTheme.colorScheme.primary
                             else -> MaterialTheme.colorScheme.primaryContainer
                         },
-                        shape = CircleShape
+                        shape = RoundedCornerShape(3.dp)
                     )
                     .clickable {
                         if (voiceManager.isListening) {

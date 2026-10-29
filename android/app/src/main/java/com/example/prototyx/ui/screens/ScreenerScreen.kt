@@ -128,58 +128,32 @@ fun ScreenerScreen(
 }
 
 @Composable
-fun ScreenerResultCard(
-    item: ScreenerResultItem,
-    userMode: UserExperienceMode
-) {
-    val (riskColor, riskText) = when (item.riskLevel.uppercase()) {
-        "SAFE" -> MaterialTheme.colorScheme.tertiary to "LOW RISK"
-        "BALANCED" -> com.example.prototyx.theme.Amber to "BALANCED"
-        else -> MaterialTheme.colorScheme.error to "HIGH RISK"
-    }
-
-    DoubleBezelCard {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(text = item.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(text = "${item.ticker} • ${item.sector}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(riskColor.copy(alpha = .12f), CircleShape)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(text = riskText, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = riskColor)
-                }
+fun ScreenerResultCard(item: ScreenerResultItem, userMode: UserExperienceMode) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(item.ticker, style = MaterialTheme.typography.titleLarge)
+                Text(item.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (userMode == UserExperienceMode.PRO) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "${item.currency.orEmpty()} ${item.price}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "P/E: ${item.peRatio ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Yield: ${item.dividendYield?.let { "$it%" } ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "RSI: ${item.rsi ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(String.format("%.2f", item.price), fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 20.sp)
+                Text(item.currency ?: "Currency unavailable", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            Text(
-                text = if (userMode == UserExperienceMode.SIMPLE) item.plainEnglishSummary else item.aiAnalysis,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp
-            )
         }
+        if (userMode == UserExperienceMode.PRO) {
+            Row(Modifier.fillMaxWidth()) {
+                listOf("P/E" to (item.peRatio?.let { String.format("%.1f", it) } ?: "—"),
+                    "YIELD" to (item.dividendYield?.let { "$it%" } ?: "—"),
+                    "RSI" to (item.rsi?.let { String.format("%.0f", it) } ?: "—")).forEach { (label, value) ->
+                    Column(Modifier.weight(1f)) {
+                        MetadataLabel(label)
+                        Text(value, style = MaterialTheme.typography.bodyMedium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    }
+                }
+            }
+        }
+        Text(if (userMode == UserExperienceMode.SIMPLE) item.plainEnglishSummary else item.aiAnalysis,
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

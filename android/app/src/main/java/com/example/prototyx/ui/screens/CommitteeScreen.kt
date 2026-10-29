@@ -63,8 +63,8 @@ fun CommitteeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp)
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         item(key = "heading") {
             Column {
@@ -90,7 +90,7 @@ fun CommitteeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                MetadataLabel(text = "MULTI-DISCIPLINE INVESTMENT RESEARCH")
+                Text("Questions, evidence and competing perspectives.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -106,7 +106,7 @@ fun CommitteeScreen(
             item(key = "tile_debate") {
                 SelectionTile(
                     title = "Compare securities",
-                    description = "Review competing evidence and implied return assumptions for a focused list of holdings.",
+                    description = "Read technical, fundamental and risk perspectives on the same observed market data.",
                     onClick = { currentView = CommitteeView.Debate }
                 )
             }
@@ -117,7 +117,7 @@ fun CommitteeScreen(
             item(key = "consult_input") {
                 DoubleBezelCard {
                     MetadataLabel(text = "RESEARCH QUESTION")
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
                         value = userQuery,
@@ -130,7 +130,7 @@ fun CommitteeScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     PrimaryButton(
                         text = "Review thesis",
@@ -170,7 +170,7 @@ fun CommitteeScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(modifier = Modifier.size(6.dp).background(Color(0xFF4CAF50), RoundedCornerShape(3.dp)))
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         
                         Column(
                             modifier = Modifier
@@ -182,7 +182,7 @@ fun CommitteeScreen(
                             Text(
                                 text = res.recommendation ?: "No recommendation provided.",
                                 fontSize = 13.sp,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = FontFamily.SansSerif,
                                 lineHeight = 18.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -197,7 +197,7 @@ fun CommitteeScreen(
             item(key = "debate_input") {
                 DoubleBezelCard {
                     MetadataLabel(text = "SECURITIES")
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
                         value = inputTickers,
@@ -210,7 +210,7 @@ fun CommitteeScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     PrimaryButton(
                         text = "Compare evidence",
@@ -269,7 +269,7 @@ fun CommitteeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(SurfaceWhite, RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -301,7 +301,9 @@ fun SelectionTile(
             .clickable { onClick() }
     ) {
         DoubleBezelCard {
-            MetadataLabel(text = title, color = Color(0xFF1F6C9F))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(14.dp))
+            Text(title, style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = description,
@@ -311,10 +313,10 @@ fun SelectionTile(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "ACCESS MODULE →",
+                text = "Open research →",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F6C9F),
+                color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.sp
             )
         }
@@ -325,13 +327,11 @@ fun SelectionTile(
 @Composable
 fun AgentDialogueCard(agent: String?, message: String?) {
     val agentName = agent ?: "Unknown Agent"
-    val agentColor = remember(agentName) { getAgentColor(agentName) }
+    val agentColor = MaterialTheme.colorScheme.primary
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceWhite, RoundedCornerShape(12.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-            .padding(16.dp)
+            .padding(vertical = 14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(6.dp).background(agentColor, RoundedCornerShape(3.dp)))
@@ -342,7 +342,7 @@ fun AgentDialogueCard(agent: String?, message: String?) {
         Text(
             text = message ?: "No dialogue content available.",
             fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = FontFamily.SansSerif,
             lineHeight = 18.sp,
             color = MaterialTheme.colorScheme.onSurface
         )

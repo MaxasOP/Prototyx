@@ -91,13 +91,29 @@ fun DashboardScreen(
         Color(0xFF1F6C9F), Color(0xFF4CAF50), Color(0xFF9C27B0), Color(0xFFFF9800)
     )
 
-    LaunchedEffect(holdings) {
-        try { finnyReport = repository.getFinnyReport() }
-        catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { searchError = "Portfolio briefing unavailable. Please try again later." }
-        try { newsFeed = repository.getNewsSentiment() }
-        catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { searchError = "News unavailable. Please try again later." }
+    var newsLoading by remember { mutableStateOf(false) }
+    var newsError by remember { mutableStateOf<String?>(null) }
+    var newsRefresh by remember { mutableIntStateOf(0) }
+    var showEditor by remember { mutableStateOf(false) }
+    var pendingBasket by remember { mutableStateOf<PresetBasket?>(null) }
+
+    LaunchedEffect(activeTickers, newsRefresh) {
+        newsFeed = emptyList()
+        newsError = null
+        if (activeTickers.isNotEmpty()) {
+            newsLoading = true
+            try {
+                val articles = mutableListOf<NewsSentimentItem>()
+                activeTickers.take(4).forEach { ticker ->
+                    try { articles.addAll(repository.getNewsSentiment(ticker)) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (_: Exception) { newsError = "Some feeds could not be refreshed." }
+                }
+                newsFeed = articles.groupBy { it.title.lowercase() }.values.map { group ->
+                    group.first().copy(tickers = group.flatMap { it.tickers }.distinct())
+                }.sortedByDescending { it.timestamp }.take(8)
+            } finally { newsLoading = false }
+        }
     }
 
     LaunchedEffect(selectedTicker, chartPeriod) {
@@ -118,8 +134,8 @@ fun DashboardScreen(
     }
 
     LaunchedEffect(holdings) {
-        if (selectedTicker.isEmpty() && holdings.isNotEmpty()) {
-            selectedTicker = holdings.keys.first()
+        if (selectedTicker !in holdings) {
+            selectedTicker = holdings.keys.firstOrNull().orEmpty()
         }
     }
 
@@ -131,400 +147,153 @@ fun DashboardScreen(
         )
     }
 
-    val healthReport = remember(holdings) {
-        if (holdings.isEmpty()) {
-            PortfolioHealthReport(0, "NO HOLDINGS", Color.Gray, "Add an allocation below or begin with a model portfolio.")
-        } else {
-            val totalAssets = holdings.size
-            val totalWeight = holdings.values.sum()
-            val maxWeight = if (totalWeight > 0) (holdings.values.maxOrNull() ?: 0f) / totalWeight else 1f
-
-            var score = 50
-            if (totalAssets >= 3) score += 25
-            else if (totalAssets == 2) score += 12
-
-            if (maxWeight < 0.45f) score += 20
-            else if (maxWeight > 0.60f) score -= 25
-
-            score = score.coerceIn(25, 96)
-
-            val (status, color, diagnosis) = when {
-                score >= 80 -> Triple(
-                    "ROBUST ALLOCATION",
-                    Mint,
-                    "$totalAssets holdings. Largest normalized weight: ${(maxWeight * 100).toInt()}%. This measures concentration only, not market risk."
-                )
-                score >= 60 -> Triple(
-                    "MODERATE CONCENTRATION",
-                    com.example.prototyx.theme.Amber,
-                    "Top holding represents ${(maxWeight * 100).toInt()}% of portfolio. Sector and market risks are not assessed by this score."
-                )
-                else -> Triple(
-                    "HIGH VULNERABILITY",
-                    Coral,
-                    "Largest normalized allocation: ${(maxWeight * 100).toInt()}%. Review concentration alongside the historical risk analysis."
-                )
-            }
-            PortfolioHealthReport(score, status, color, diagnosis)
-        }
+    val palette = listOf(Color(0xFF344D35), Color(0xFF8F9C78), Color(0xFFC0A879), Color(0xFF697F85))
+    val invested = holdings.values.sum()
+    if (pendingBasket != null) {
+        val basket = pendingBasket!!
+        AlertDialog(onDismissRequest = { pendingBasket = null },
+            title = { Text("Use ${basket.title}?") },
+            text = { Text("This replaces your current allocation with the model weights. It does not place trades.") },
+            confirmButton = { TextButton(onClick = {
+                pendingBasket = null
+                coroutineScope.launch {
+                    try { repository.replaceHoldings(basket.holdings); selectedTicker = basket.holdings.keys.first() }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { syncError = e.message }
+                }
+            }) { Text("Replace allocation") } },
+            dismissButton = { TextButton(onClick = { pendingBasket = null }) { Text("Keep portfolio") } })
     }
-
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        // Hero Header
-        item(key = "heading") {
-            Box(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 148.dp)
-            ) {
-                Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
-                    MetadataLabel(text = "YOUR WEALTH, IN PERSPECTIVE")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Your portfolio.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("A clearer view of what you own and what comes next.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.align(Alignment.TopEnd)
-                ) {
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                isSyncing = true
-                                syncError = null
-                                try {
-                                    repository.syncWithCloud()
-                                } catch (e: Exception) {
-                                    syncError = "Sync failed: ${e.message}"
-                                } finally {
-                                    isSyncing = false
-                                }
-                            }
-                        },
-                        enabled = !isSyncing
-                    ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Sync with Cloud",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+    LazyColumn(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Portfolio", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = {
+                    coroutineScope.launch {
+                        isSyncing = true
+                        try { repository.syncWithCloud(); syncError = null; newsRefresh++ }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { syncError = e.message }
+                        finally { isSyncing = false }
                     }
-
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                repository.logout()
-                                onLogout()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Default.ExitToApp,
-                            contentDescription = "Logout",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                        )
-                    }
+                }, enabled = !isSyncing) {
+                    if (isSyncing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.Refresh, contentDescription = "Sync portfolio")
+                }
+                IconButton(onClick = { coroutineScope.launch { repository.logout(); onLogout() } }) {
+                    Icon(Icons.AutoMirrored.Default.ExitToApp, contentDescription = "Sign out", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-
-        // Mode Toggle (Simple vs Pro)
-        item(key = "allocation_overview") {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("ALLOCATION OVERVIEW", fontSize = 10.sp, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("${holdings.size}", fontSize = 48.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("assets in your portfolio", modifier = Modifier.padding(bottom = 10.dp), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    }
-                    Text("Select a holding to explore its market performance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    if (holdings.isNotEmpty()) {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            holdings.forEach { (ticker, weight) ->
-                                FilterChip(
-                                    selected = selectedTicker == ticker,
-                                    onClick = { selectedTicker = ticker },
-                                    label = { Text("$ticker  ${(weight * 100).toInt()}%") }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (syncError != null || searchError != null) {
-            item(key = "dashboard_error") {
-                Text(syncError ?: searchError.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        item(key = "mode_toggle") {
-            ModeToggleBar(
-                currentMode = userMode,
-                onModeChanged = { userMode = it }
-            )
-        }
-
-        // FINNY Virtual Agent Card
-        item(key = "finny_agent") {
-            finnyReport?.let { report ->
-                FinnyVirtualAgentCard(
-                    healthScore = report.portfolioHealthScore,
-                    briefingSummary = report.dailyBriefingSummary,
-                    onVoiceTap = onVoiceTap,
-                    state = FinnyState.IDLE
-                )
-            }
-        }
-
-        // Quick-Test Baskets
-        item(key = "presets_row") {
-            Column {
-                SectionHeader(title = "Find your strategy", supportingText = "Choose a model to replace your current allocation")
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    demoBaskets.forEach { basket ->
-                        PresetBasketChip(
-                            basket = basket,
-                            onClick = {
-                                coroutineScope.launch {
-                                    try { repository.replaceHoldings(basket.holdings) }
-                                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                                    catch (e: Exception) { syncError = "Allocation saved locally; cloud sync failed." }
-                                    selectedTicker = basket.holdings.keys.first()
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        // Portfolio Health Meter or Simple Risk Gauge
-        item(key = "health_scorecard") {
-            PortfolioHealthCard(report = healthReport)
-        }
-
-        // Interactive Stock Charting Engine
-        if (selectedTicker.isNotEmpty()) {
-            item(key = "interactive_chart") {
-                chartData?.let { data ->
-                    StockChartView(
-                        ticker = data.ticker,
-                        pricePoints = data.pricePoints,
-                        selectedPeriod = chartPeriod,
-                        onPeriodChanged = { chartPeriod = it }
-                    )
-                }
-            }
-        }
-
-        // Search & Discovery
-        item(key = "search_card") {
-            DoubleBezelCard {
-                SectionHeader(title = "Edit allocation", supportingText = "Set a decimal weight, or enter zero to remove")
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        label = { Text("Ticker (e.g. NVDA)", fontSize = 11.sp) },
-                        modifier = Modifier.weight(1.5f),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-                    OutlinedTextField(
-                        value = searchWeight,
-                        onValueChange = { searchWeight = it },
-                        label = { Text("Weight (e.g. 0.2)", fontSize = 11.sp) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PrimaryButton(
-                    text = "Apply allocation",
-                    onClick = {
-                        val ticker = searchQuery.trim().uppercase()
-                        val weight = searchWeight.toFloatOrNull()
-                        if (ticker.isBlank() || weight == null || !weight.isFinite() || weight < 0f || weight > 1f) {
-                            searchError = "Enter a ticker and a decimal weight from 0 to 1. No allocation was changed."
-                            return@PrimaryButton
-                        }
-                        if (ticker.isNotEmpty()) {
-                            coroutineScope.launch {
-                                try {
-                                    if (weight > 0) repository.updateHolding(ticker, weight)
-                                    else repository.removeHolding(ticker)
-                                    searchError = null
-                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                                catch (e: IllegalArgumentException) { searchError = e.message }
-                                catch (e: Exception) { syncError = "Saved locally; cloud sync failed. Use sync to retry." }
-                            }
-                            selectedTicker = ticker
-                            searchQuery = ""
-                            searchWeight = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        // News Sentiment Stream
-        if (newsFeed.isNotEmpty()) {
-            item(key = "news_stream_header") {
-                SectionHeader(title = "Portfolio news", supportingText = "Developments that may affect current holdings")
-            }
-            items(newsFeed) { news ->
-                NewsSentimentCard(item = news, userMode = userMode)
-            }
-        }
-    }
-}
-
-@Composable
-fun TechnicalMetricItem(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-    }
-}
-
-@Composable
-fun PresetBasketChip(
-    basket: PresetBasket,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .clickable { onClick() }
-            .width(152.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = basket.title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = basket.subtitle,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PortfolioHealthCard(report: PortfolioHealthReport) {
-    DoubleBezelCard {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-                SectionHeader(title = "Allocation concentration")
-            Surface(
-                color = report.statusColor.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = report.status,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.5.sp,
-                    color = report.statusColor
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                MetadataLabel("ALLOCATION / INVESTED CAPITAL")
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "${report.score}",
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "/100",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
+                    Text(String.format("%.0f", invested * 100), fontSize = 54.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        letterSpacing = (-3).sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("%", fontSize = 24.sp, modifier = Modifier.padding(bottom = 9.dp))
+                    Spacer(Modifier.weight(1f))
+                    Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 9.dp)) {
+                        Text("${holdings.size} holdings", style = MaterialTheme.typography.titleMedium)
+                        Text("${String.format("%.0f", (1f-invested).coerceAtLeast(0f)*100)}% unallocated",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                MetadataLabel(text = "CONCENTRATION HEURISTIC")
+                Row(Modifier.fillMaxWidth().height(7.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    holdings.entries.forEachIndexed { index, entry ->
+                        if (entry.value > 0) Box(Modifier.weight(entry.value).fillMaxHeight().background(palette[index % palette.size]))
+                    }
+                    if (invested < 1f) Box(Modifier.weight((1f-invested).coerceAtLeast(.001f)).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    MetadataLabel("HOLDING", Modifier.weight(1f))
+                    MetadataLabel("WEIGHT")
+                    TextButton(onClick = { showEditor = !showEditor }) { Text(if (showEditor) "Close" else "Edit") }
+                }
+                Column {
+                holdings.entries.forEachIndexed { index, entry ->
+                    Row(Modifier.fillMaxWidth().clickable { selectedTicker = entry.key }
+                        .background(if (selectedTicker == entry.key) MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f) else Color.Transparent)
+                        .padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).background(palette[index % palette.size]))
+                        Spacer(Modifier.width(12.dp))
+                        Text(entry.key, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(String.format("%.1f%%", entry.value*100), fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp)
+                        Text("  →", color = MaterialTheme.colorScheme.primary)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                }
+                if (holdings.isEmpty()) Text("No holdings yet. Add an allocation or choose a model below.", style = MaterialTheme.typography.bodyMedium)
             }
-
-            AnimatedScoreRing(score = report.score, color = report.statusColor)
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = report.diagnosis,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 18.sp
-        )
+        if (showEditor || holdings.isEmpty()) item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionHeader("Edit allocation", supportingText = "Decimal weight: 0.2 = 20%. Use 0 to remove.")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(searchQuery, { searchQuery = it }, label = { Text("Ticker") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(searchWeight, { searchWeight = it }, label = { Text("Weight") }, modifier = Modifier.weight(1f), singleLine = true)
+                }
+                PrimaryButton("Save allocation", onClick = {
+                    val ticker = searchQuery.trim().uppercase()
+                    val weight = searchWeight.toFloatOrNull()
+                    if (ticker.isBlank() || weight == null || !weight.isFinite() || weight !in 0f..1f) {
+                        searchError = "Enter a ticker and a decimal weight from 0 to 1."
+                    } else coroutineScope.launch {
+                        try {
+                            if (weight == 0f) repository.removeHolding(ticker) else repository.updateHolding(ticker, weight)
+                            searchQuery = ""; searchWeight = ""; searchError = null
+                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { searchError = e.message }
+                    }
+                }, modifier = Modifier.fillMaxWidth())
+            }
+        }
+        if (syncError != null || searchError != null) item { StatusMessage(syncError ?: searchError.orEmpty(), isError = true) }
+        if (selectedTicker.isNotEmpty()) item {
+            if (isLoading) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text("Loading $selectedTicker price history…", style = MaterialTheme.typography.bodySmall)
+            }
+            chartData?.let { data -> StockChartView(data.ticker, data.pricePoints, selectedPeriod = chartPeriod, onPeriodChanged = { chartPeriod = it }) }
+        }
+        item {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(18.dp))
+            SectionHeader("Model allocations", supportingText = "Reference weights. Selecting a model replaces your holdings.")
+            demoBaskets.forEach { basket ->
+                Row(Modifier.fillMaxWidth().clickable { pendingBasket = basket }.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(basket.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(basket.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("   →", color = MaterialTheme.colorScheme.primary)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Holdings in the news", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { newsRefresh++ }, enabled = !newsLoading) { Text("Refresh") }
+            }
+            Text(if (activeTickers.isEmpty()) "Add holdings to see company headlines." else
+                "Dated headlines matched to ${activeTickers.take(4).joinToString(" · ")}. Impact is not assessed.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (newsLoading) { Spacer(Modifier.height(12.dp)); LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            newsError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+            if (!newsLoading && newsFeed.isEmpty() && activeTickers.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text("No matching headlines from the past 7 days.", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        items(newsFeed, key = { it.id }) { NewsSentimentCard(it) }
+        item { MetadataLabel("PROTOTYX / RESEARCH, NOT EXECUTION"); Spacer(Modifier.height(12.dp)) }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DashboardScreenPreview() {
-    PrototyxTheme {
-        DashboardScreen(repository = MockDataRepository(), onLogout = {})
-    }
+    PrototyxTheme { DashboardScreen(MockDataRepository(), {}) }
 }

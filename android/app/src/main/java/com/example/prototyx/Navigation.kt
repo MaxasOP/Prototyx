@@ -2,6 +2,7 @@ package com.example.prototyx
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -101,47 +102,19 @@ fun MainNavigation(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
+        topBar = {
             if (currentScreen::class != Login::class) {
-                FloatingActionButton(
-                    onClick = {
-                        if (androidx.core.content.ContextCompat.checkSelfPermission(
-                                context,
-                                android.Manifest.permission.RECORD_AUDIO
-                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        ) {
-                            showVoiceSheet = true
-                        } else {
-                            permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(18.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(0.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        FinnyMuseDots(
-                            state = when {
-                                voiceManager.isListening -> FinnyState.LISTENING
-                                voiceManager.isSpeaking -> FinnyState.SPEAKING
-                                voiceManager.isThinking -> FinnyState.THINKING
-                                else -> FinnyState.IDLE
-                            },
-                            dotSize = 5.dp,
-                            dotSpacing = 3.dp
-                        )
-                        Text(
-                            text = "FINNY",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        )
+                Column(Modifier.statusBarsPadding()) {
+                    Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("P/", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(10.dp))
+                        Text("PROTOTYX", fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) showVoiceSheet = true
+                            else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }) { Text("Ask Finny", fontSize = 12.sp) }
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         },
@@ -176,13 +149,13 @@ fun MainNavigation(
                                     text = tab.title,
                                     fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    letterSpacing = 0.5.sp,
+                                    letterSpacing = 0.sp,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             alwaysShowLabel = true,
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Signal.copy(alpha = .12f),
+                                indicatorColor = Color.Transparent,
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary
                             )
@@ -201,7 +174,7 @@ fun MainNavigation(
         }
 
         NavDisplay(
-            modifier = Modifier.padding(bottom = if (currentScreen::class == Login::class) 0.dp else 72.dp),
+
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             entryProvider = entryProvider {

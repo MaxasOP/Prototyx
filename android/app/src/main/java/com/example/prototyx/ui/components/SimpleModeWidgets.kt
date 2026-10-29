@@ -23,56 +23,14 @@ fun ModeToggleBar(
     onModeChanged: (UserExperienceMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(4.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        color = if (currentMode == UserExperienceMode.SIMPLE) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .clickable { onModeChanged(UserExperienceMode.SIMPLE) }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "GUIDED",
-                    fontSize = 10.sp,
-                    letterSpacing = 1.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (currentMode == UserExperienceMode.SIMPLE) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        color = if (currentMode == UserExperienceMode.PRO) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .clickable { onModeChanged(UserExperienceMode.PRO) }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "TERMINAL",
-                    fontSize = 10.sp,
-                    letterSpacing = 1.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (currentMode == UserExperienceMode.PRO) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        listOf(UserExperienceMode.SIMPLE to "Overview", UserExperienceMode.PRO to "Detailed").forEach { (mode, title) ->
+            Column(Modifier.weight(1f)) {
+                TextButton(onClick = { onModeChanged(mode) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(title, color = if (currentMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(thickness = if (currentMode == mode) 2.dp else 1.dp,
+                    color = if (currentMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }

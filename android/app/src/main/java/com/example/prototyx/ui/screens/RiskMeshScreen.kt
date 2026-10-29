@@ -49,8 +49,8 @@ fun RiskMeshScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp)
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         item(key = "heading") {
             Row(
@@ -59,107 +59,9 @@ fun RiskMeshScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    EditorialHeading(text = "Portfolio risk")
+                    EditorialHeading(text = "Risk study")
                     Spacer(modifier = Modifier.height(8.dp))
-                    MetadataLabel(text = "EXPOSURE, CORRELATION AND DOWNSIDE SCENARIOS")
-                }
-            }
-        }
-
-        // Stress Testing Simulator Section
-        item(key = "stress_test_card") {
-            DoubleBezelCard {
-                MetadataLabel(text = "SCENARIO ANALYSIS")
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Estimate how macro shocks may affect value at risk and drawdown.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val scenarios = listOf(
-                        "rate_hike" to "📈 Fed Rate Hike",
-                        "oil_spike" to "🛢️ Oil Shock",
-                        "tech_selloff" to "💻 Tech Sell-off"
-                    )
-
-                    scenarios.forEach { (id, label) ->
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isStressLoading = true
-                                    errorMessage = null
-                                    stressTestResult = null
-                                    try {
-                                        require(meshHoldings.isNotEmpty()) { "Add holdings before running a historical replay." }
-                                        stressTestResult = repository.runStressTest(meshHoldings.keys.toList(), meshHoldings.values.toList(), id)
-                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                                    catch (e: Exception) { errorMessage = e.message ?: "Historical replay unavailable" }
-                                    finally { isStressLoading = false }
-                                }
-                            },
-                            enabled = !isStressLoading,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        ) {
-                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                if (isStressLoading) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    }
-                }
-
-                stressTestResult?.let { res ->
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "SCENARIO: ${res.scenarioName}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        BentoMetric(label = "Return Shock", value = "${String.format("%.1f", res.portfolioReturnChange * 100)}%", modifier = Modifier.weight(1f))
-                        BentoMetric(label = "Stressed VaR", value = "${String.format("%.1f", res.stressedVaR * 100)}%", modifier = Modifier.weight(1f))
-                        BentoMetric(label = "Max Drawdown", value = "${String.format("%.1f", res.stressedDrawdown * 100)}%", modifier = Modifier.weight(1f))
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "💡 FINNY Verdict: ${res.plainEnglishVerdict}",
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Text("Historical relationships. Observed drawdowns.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -167,7 +69,7 @@ fun RiskMeshScreen(
         item(key = "config_card") {
             DoubleBezelCard {
                 MetadataLabel(text = "Asset Configuration")
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -252,6 +154,104 @@ fun RiskMeshScreen(
             }
         }
 
+        // Stress Testing Simulator Section
+        item(key = "stress_test_card") {
+            DoubleBezelCard {
+                MetadataLabel(text = "HISTORICAL REPLAY / 2022")
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Replay observed 2022 market windows at your current weights. This is historical evidence, not a forecast.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val scenarios = listOf(
+                        "rate_hike" to "2022 rates",
+                        "oil_spike" to "2022 oil",
+                        "tech_selloff" to "2022 tech"
+                    )
+
+                    scenarios.forEach { (id, label) ->
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isStressLoading = true
+                                    errorMessage = null
+                                    stressTestResult = null
+                                    try {
+                                        require(meshHoldings.isNotEmpty()) { "Add holdings before running a historical replay." }
+                                        stressTestResult = repository.runStressTest(meshHoldings.keys.toList(), meshHoldings.values.toList(), id)
+                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                    catch (e: Exception) { errorMessage = e.message ?: "Historical replay unavailable" }
+                                    finally { isStressLoading = false }
+                                }
+                            },
+                            enabled = !isStressLoading,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                if (isStressLoading) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                stressTestResult?.let { res ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "SCENARIO: ${res.scenarioName}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        BentoMetric(label = "Return Shock", value = "${String.format("%.1f", res.portfolioReturnChange * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Stressed VaR", value = "${String.format("%.1f", res.stressedVaR * 100)}%", modifier = Modifier.weight(1f))
+                        BentoMetric(label = "Max Drawdown", value = "${String.format("%.1f", res.stressedDrawdown * 100)}%", modifier = Modifier.weight(1f))
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "💡 FINNY Verdict: ${res.plainEnglishVerdict}",
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+
         errorMessage?.let { error ->
             item(key = "error") {
                 StatusMessage(error, isError = true)
@@ -262,25 +262,25 @@ fun RiskMeshScreen(
             item {
                 DoubleBezelCard {
                     MetadataLabel(text = "Exposure Summary")
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             MetadataLabel(text = "Net Exposure Index")
-                            Text(text = "${res.netExposureIndex}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(text = String.format("%.2f", res.netExposureIndex), fontSize = 24.sp, fontWeight = FontWeight.Medium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                             Text(getNEIDesc(res.netExposureIndex), fontSize = 10.sp, color = getNEIColor(res.netExposureIndex), fontWeight = FontWeight.Bold)
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             MetadataLabel(text = "Portfolio Beta")
-                            Text(text = "${res.portfolioBeta}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(text = String.format("%.2f", res.portfolioBeta), fontSize = 24.sp, fontWeight = FontWeight.Medium, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                             Text(getBetaDesc(res.portfolioBeta), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     res.aiRiskAudit?.let { audit ->
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         MetadataLabel(text = "RISK RESPONSE", color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
@@ -296,7 +296,7 @@ fun RiskMeshScreen(
             item {
                 DoubleBezelCard {
                     MetadataLabel(text = "Asset Correlation Heatmap")
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     CorrelationHeatmap(res.tickers, res.correlationMatrix)
                 }
             }
@@ -361,7 +361,7 @@ fun CorrelationHeatmap(tickers: List<String>, matrix: Map<String, Map<String, Do
                             text = String.format("%.2f", corr),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (corr.let { it > 0.6 || it < -0.2 }) Color.White else Color.Black
+                            color = if (corr >= 0.5 || corr <= -0.5) Color.White else Color.Black
                         )
                     }
                 }
@@ -382,8 +382,8 @@ private fun getHeatmapColor(corr: Double): Color {
 }
 
 private fun getNEIColor(nei: Double): Color = if (nei > 0.5) Color(0xFF9F2F2D) else Color(0xFF346538)
-private fun getNEIDesc(nei: Double): String = if (nei > 0.5) "CONCENTRATED RISK" else "OPTIMALLY DIVERSIFIED"
-private fun getBetaDesc(beta: Double): String = if (beta > 1.2) "HIGH VOLATILITY" else "MARKET NEUTRAL"
+private fun getNEIDesc(nei: Double): String = if (nei > 0.5) "HIGHER WEIGHTED CORRELATION" else "LOWER WEIGHTED CORRELATION"
+private fun getBetaDesc(beta: Double): String = "BENCHMARK-RELATIVE SENSITIVITY"
 
 @Preview(showBackground = true)
 @Composable
