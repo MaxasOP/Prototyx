@@ -91,11 +91,11 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     Analyze this user query: "{user_query}"
     The user's current portfolio: {user_holdings_str}
 
-    Identify the main financial asset (Stock or Crypto).
+    Identify the main financial asset (Stock or Crypto) and user intent.
     Return ONLY a valid JSON object with:
     {{
        "ticker": "TICKER_SYMBOL or NONE",
-       "action": "add_holding, remove_holding, or none",
+       "action": "add_holding, remove_holding, optimize, or none",
        "weight": "float between 0 and 1, or 0.1 if not specified"
     }}
     """
@@ -137,13 +137,27 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         else:
             action_result = f"Action Note: {ticker} was not in the portfolio, couldn't remove."
 
+    elif action == "optimize" and current_user and db_session:
+        from quant.optimizer import optimize_portfolio_mvo
+        holdings = db_session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
+        if holdings:
+            tickers = [h.ticker for h in holdings]
+            opt = optimize_portfolio_mvo(tickers)
+            for t, w in opt.get('optimal_weights', {}).items():
+                h_row = db_session.exec(select(Holding).where(Holding.user_id == current_user.id, Holding.ticker == t)).first()
+                if h_row: h_row.weight = float(w)
+            db_session.commit()
+            action_result = "Action Taken: Successfully rebalanced and optimized portfolio weights via Mean-Variance Optimization."
+        else:
+            action_result = "Action Note: No holdings found to optimize."
+
     print(f"DEBUG: Manager detected asset: {ticker}, Action: {action}")
 
     # If no ticker detected at all, return conversational response
     if ticker == "NONE":
         if action_result:
             return {"asset": "PORTFOLIO", "recommendation": action_result, "data_summary": {}, "news_found": False}
-        return {"asset": "PORTFOLIO", "recommendation": "Please name a specific asset or command (e.g. Add Apple to my portfolio).", "data_summary": {}, "news_found": False}
+        return {"asset": "PORTFOLIO", "recommendation": "Jarvis online. Please name a specific asset or command (e.g. Add Nvidia to my portfolio, or optimize my portfolio).", "data_summary": {}, "news_found": False}
 
     # 2. Parallel Execution (Step 2: Workers)
     data_task = data_analyst_worker(ticker)

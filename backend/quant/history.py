@@ -10,13 +10,19 @@ def returns_for(tickers, period='2y', base_currency=None):
     currencies = set()
     currency_by_ticker = {}
     for ticker in tickers:
-        asset = yf.Ticker(resolve_ticker(ticker))
-        currency = asset.fast_info.get('currency')
-        if not currency: raise ValueError('Currency unavailable for '+ticker)
+        resolved = resolve_ticker(ticker)
+        asset = yf.Ticker(resolved)
+        try:
+            currency = asset.fast_info.get('currency') or asset.info.get('currency')
+        except Exception:
+            currency = None
+        if not currency:
+            raise ValueError(f"Invalid or unsupported ticker symbol: '{ticker}'. Please verify the ticker.")
         currencies.add(currency)
         currency_by_ticker[ticker] = currency
         history = asset.history(period=period, auto_adjust=True)
-        if history.empty: raise ValueError('History unavailable for '+ticker)
+        if history.empty:
+            raise ValueError(f"No historical price data found for '{ticker}'.")
         series = history['Close'].copy()
         series.index = pd.to_datetime(series.index.date)
         prices[ticker] = series
