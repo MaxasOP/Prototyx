@@ -35,6 +35,10 @@ fun VoiceCoPilotSheet(
     onDismiss: () -> Unit
 ) {
     var manualInput by remember { mutableStateOf("") }
+    DisposableEffect(voiceManager, repository) {
+        voiceManager.onSpeechResult = { text -> voiceManager.queryAssistant(text, repository) }
+        onDispose { voiceManager.onSpeechResult = null }
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val quickQuestions = listOf(
@@ -133,9 +137,6 @@ fun VoiceCoPilotSheet(
                     .clickable {
                         if (voiceManager.isListening) {
                             voiceManager.stopListening()
-                            if (voiceManager.recognizedText.isNotBlank()) {
-                                voiceManager.queryAssistant(voiceManager.recognizedText, repository)
-                            }
                         } else {
                             voiceManager.startListening()
                         }

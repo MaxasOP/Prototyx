@@ -22,6 +22,7 @@ class VoiceAssistantManager(
     private val context: Context,
     private val coroutineScope: CoroutineScope
 ) : RecognitionListener, TextToSpeech.OnInitListener {
+    var onSpeechResult: ((String) -> Unit)? = null
 
     var isListening by mutableStateOf(false)
         private set
@@ -223,10 +224,12 @@ class VoiceAssistantManager(
     }
 
     override fun onResults(results: Bundle?) {
+        isListening = false
         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val text = matches?.firstOrNull() ?: ""
         if (text.isNotBlank()) {
             recognizedText = text
+            onSpeechResult?.invoke(text)
         }
     }
 
