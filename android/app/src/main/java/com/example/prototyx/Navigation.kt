@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -51,8 +50,8 @@ sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: S
     object ScreenerTab : BottomBarTab(Screener, Icons.Outlined.Search, "Screener")
     object Optimize : BottomBarTab(Optimizer, Icons.Outlined.Build, "Optimize")
     object Risk : BottomBarTab(RiskMesh, Icons.Outlined.Info, "Risk")
-    object Debate : BottomBarTab(Committee, Icons.AutoMirrored.Outlined.List, "Research")
-    object Transcripts : BottomBarTab(Earnings, Icons.AutoMirrored.Outlined.List, "Earnings")
+    object Debate : BottomBarTab(Committee, ResearchNavigationIcon, "Research")
+    object Transcripts : BottomBarTab(Earnings, EarningsNavigationIcon, "Earnings")
 }
 
 @Composable
