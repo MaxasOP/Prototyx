@@ -22,21 +22,8 @@ def search_screener_items(query: Optional[str] = None, risk_level: Optional[str]
     return items
 
 def search_tickers_catalog(query: Optional[str] = None, sector: Optional[str] = None) -> List[Dict[str, Any]]:
-    catalog = [
-        {"ticker": "TCS", "name": "Tata Consultancy Services", "sector": "Technology", "industry": "IT Services", "exchange": "NSE"},
-        {"ticker": "RELIANCE", "name": "Reliance Industries Ltd", "sector": "Energy", "industry": "Oil & Gas Conglomerate", "exchange": "NSE"},
-        {"ticker": "NVDA", "name": "NVIDIA Corporation", "sector": "Technology", "industry": "Semiconductors", "exchange": "NASDAQ"},
-        {"ticker": "AAPL", "name": "Apple Inc", "sector": "Technology", "industry": "Consumer Electronics", "exchange": "NASDAQ"},
-        {"ticker": "MSFT", "name": "Microsoft Corporation", "sector": "Technology", "industry": "Software & Cloud", "exchange": "NASDAQ"},
-        {"ticker": "INFY", "name": "Infosys Ltd", "sector": "Technology", "industry": "IT Services", "exchange": "NSE"}
-    ]
-
-    if query:
-        q = query.lower()
-        catalog = [c for c in catalog if q in c["ticker"].lower() or q in c["name"].lower()]
-    if sector:
-        catalog = [c for c in catalog if sector.lower() in c['sector'].lower()]
-    return catalog
+    from data.company_search import search_companies
+    return search_companies(query, sector)
 
 def calculate_macro_stress_test(tickers: List[str], weights: List[float], scenario_id: str, base_currency=None) -> Dict[str, Any]:
     import numpy as np

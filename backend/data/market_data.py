@@ -16,7 +16,7 @@ def get_latest_metrics(ticker: str) -> Dict[str, Any]:
     """
     Fetches real-time market indicators using yfinance with statistical fallback.
     """
-    ticker_clean = ticker.upper().strip().replace(".NS", "").replace(".BO", "")
+    ticker_clean = ticker.upper().strip()
     symbol = resolve_ticker(ticker_clean)
 
     try:
@@ -68,7 +68,7 @@ def get_stock_chart(ticker: str, period: str = "1M") -> Dict[str, Any]:
     """
     Fetches historical price points for interactive charting using yfinance.
     """
-    ticker_clean = ticker.upper().strip().replace(".NS", "").replace(".BO", "")
+    ticker_clean = ticker.upper().strip()
     symbol = resolve_ticker(ticker_clean)
 
     period_map = {"1D": "1d", "1W": "5d", "1M": "1mo", "1Y": "1y", "5Y": "5y"}

@@ -159,7 +159,10 @@ def get_holdings(current_user: User = Depends(get_current_user), session: Sessio
 @app.get("/api/tickers/search")
 def search_tickers(query: Optional[str] = None, sector: Optional[str] = None):
     from data.screener_service import search_tickers_catalog
-    return search_tickers_catalog(query, sector)
+    try:
+        return search_tickers_catalog(query, sector)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 @app.get("/api/market/indicators/{ticker}")
 def get_indicators(ticker: str):
