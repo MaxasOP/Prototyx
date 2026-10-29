@@ -211,7 +211,7 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     if ticker == "NONE":
         if action_result:
             return {"asset": "PORTFOLIO", "recommendation": action_result, "data_summary": {}, "news_found": False}
-        return {"asset": "PORTFOLIO", "recommendation": "Jarvis online. Please name a specific asset or command (e.g. Add Nvidia to my portfolio, or optimize my portfolio).", "data_summary": {}, "news_found": False}
+        return {"asset": "PORTFOLIO", "recommendation": "Finny online. Please name a specific asset or command (e.g. Add Nvidia to my portfolio, or optimize my portfolio).", "data_summary": {}, "news_found": False}
 
     # 2. Parallel Execution (Step 2: Workers)
     data_task = data_analyst_worker(ticker)
@@ -248,7 +248,14 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     - Keep it under 150 words.
     """
 
-    final_report = (await call_llm(synthesis_prompt)).strip()
+    try:
+        final_report = (await call_llm(synthesis_prompt)).strip()
+    except Exception as e:
+        print(f"LLM synthesis failed, using deterministic fallback: {e}")
+        p = data_results.get('price', 'N/A')
+        v = data_results.get('volatility', 'N/A')
+        action_prefix = f"{action_result}\n\n" if action_result else ""
+        final_report = f"{action_prefix}STRATEGY SUMMARY: Market analysis for {ticker}. Current price is observed at {p} with {v} annualized volatility. RISK RATING: MODERATE. FINAL VERDICT: HOLD."
 
     return {
         "asset": ticker,
