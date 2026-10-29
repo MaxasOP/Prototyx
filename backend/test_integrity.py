@@ -18,6 +18,7 @@ from data.screener_service import get_finny_strategy_report
 
 class IntegrityTests(unittest.TestCase):
     def setUp(self):
+        app.state.auth_attempts={}
         self.engine = create_engine('sqlite://', connect_args={'check_same_thread':False}, poolclass=StaticPool)
         SQLModel.metadata.create_all(self.engine)
         def session():

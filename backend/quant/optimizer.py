@@ -3,8 +3,8 @@ import numpy as np
 from scipy.optimize import minimize
 from quant.history import returns_for
 
-def optimize_portfolio_mvo(tickers, views=None):
-    r = returns_for(tickers)
+def optimize_portfolio_mvo(tickers, views=None, base_currency=None):
+    r = returns_for(tickers, base_currency=base_currency)
     names = list(r.columns)
     mean = r.mean().to_numpy()*252
     covariance = r.cov().to_numpy()*252

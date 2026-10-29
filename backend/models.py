@@ -3,6 +3,17 @@ from sqlmodel import SQLModel, Field, Relationship
 from pydantic import BaseModel, field_validator
 import math
 
+class RevokedToken(SQLModel, table=True):
+    token_hash: str = Field(primary_key=True)
+    user_id: int = Field(index=True)
+
+class PasswordReset(SQLModel, table=True):
+    code_hash: str = Field(primary_key=True)
+    user_id: int = Field(index=True)
+    expires_at: float
+    created_at: float
+    used: bool = False
+
 # --- Database Models ---
 
 class User(SQLModel, table=True):
@@ -74,6 +85,8 @@ class EarningsTranscriptResponse(BaseModel):
 class RiskMeshRequest(BaseModel):
     tickers: List[str]
     weights: List[float]
+    base_currency: Optional[str] = None
+    benchmark: Optional[str] = None
 
 class RiskMeshResponse(BaseModel):
     mesh: Dict[str, Any] # Generic for now
@@ -81,6 +94,7 @@ class RiskMeshResponse(BaseModel):
 class OptimizeRequest(BaseModel):
     tickers: List[str]
     views: Optional[Dict[str, float]] = None
+    base_currency: Optional[str] = None
 
 class OptimizeResponse(BaseModel):
     optimized_weights: Dict[str, float]

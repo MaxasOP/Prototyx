@@ -1,5 +1,7 @@
 import os
 import bcrypt
+import hashlib
+import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -31,6 +33,7 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
+    to_encode['jti'] = uuid.uuid4().hex
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
@@ -38,6 +41,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def credential_version(user):
+    return hashlib.sha256(user.hashed_password.encode()).hexdigest()
 
 def decode_access_token(token: str):
     try:

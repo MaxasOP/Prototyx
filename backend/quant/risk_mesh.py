@@ -1,7 +1,7 @@
 from typing import Dict, List, Any
 import numpy as np
 
-def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[str, Any]:
+def calculate_exposure_mesh(tickers: List[str], weights: List[float], benchmark=None, base_currency=None) -> Dict[str, Any]:
     """
     Computes real cross-asset risk mesh based on static sector correlations.
     No external APIs used.
@@ -10,9 +10,10 @@ def calculate_exposure_mesh(tickers: List[str], weights: List[float]) -> Dict[st
     from data.market_data import resolve_ticker
     if len(tickers) != len(weights) or not weights or not all(np.isfinite(w) and w >= 0 for w in weights) or sum(weights) <= 0:
         raise ValueError('Provide a finite nonnegative weight per ticker with positive total')
-    benchmark = '^NSEI' if resolve_ticker(tickers[0]).endswith(('.NS', '.BO')) else '^GSPC'
+    benchmark = benchmark or ('^NSEI' if resolve_ticker(tickers[0]).endswith(('.NS', '.BO')) else '^GSPC')
+    if benchmark not in ('^NSEI','^GSPC'): raise ValueError('Unsupported benchmark')
     universe = list(dict.fromkeys(tickers + [benchmark]))
-    history = returns_for(universe)
+    history = returns_for(universe,base_currency=base_currency)
     assets = history[tickers]
     corr = assets.corr()
     variance = history[benchmark].var()

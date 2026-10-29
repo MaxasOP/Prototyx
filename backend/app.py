@@ -5,6 +5,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
 from typing import List, Dict, Optional, Any
 import os
+import hashlib
+from models import RevokedToken
+from auth_utils import credential_version
 
 from database import init_db, get_session
 from models import (
@@ -22,10 +25,31 @@ app = FastAPI(
     version="2.1.0"
 )
 
+@app.middleware('http')
+async def limit_auth_attempts(request, call_next):
+    from collections import deque
+    import time
+    from fastapi.responses import JSONResponse
+    limits={'/api/auth/login':15,'/api/auth/register':10,'/api/auth/forgot-password':5,'/api/auth/reset-password':10,'/api/account/delete':10,'/api/account/password':10,'/api/account/signout-all':10}
+    if request.method=='POST' and request.url.path in limits:
+        if not hasattr(app.state,'auth_attempts'): app.state.auth_attempts={}
+        now=time.monotonic()
+        # Keep at most one minute of per-client attempt timestamps (single-process deployment).
+        store=app.state.auth_attempts
+        if len(store)>10000:
+            app.state.auth_attempts={k:v for k,v in store.items() if v and v[-1]>now-60}
+            store=app.state.auth_attempts
+        key=(request.client.host if request.client else 'unknown',request.url.path)
+        bucket=store.setdefault(key,deque())
+        while bucket and bucket[0]<=now-60: bucket.popleft()
+        if len(bucket)>=limits[request.url.path]: return JSONResponse({'detail':'Too many attempts. Try again in one minute.'},status_code=429,headers={'Retry-After':'60'})
+        bucket.append(now)
+    return await call_next(request)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[os.getenv('PUBLIC_APP_URL','https://prototyx.onrender.com').rstrip('/')],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,8 +76,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
             detail="Could not validate credentials",
         )
     user = session.exec(select(User).where(User.email == email)).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+    if user is None or payload.get('ver') != credential_version(user):
+        raise HTTPException(status_code=401, detail="Sign in again to continue")
+    if session.get(RevokedToken, hashlib.sha256(token.encode()).hexdigest()):
+        raise HTTPException(status_code=401, detail="Session signed out")
     return user
 
 # --- Auth Endpoints ---
@@ -74,7 +100,7 @@ def register(request: RegisterRequest, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(new_user)
     
-    access_token = create_access_token(data={"sub": new_user.email})
+    access_token = create_access_token(data={"sub": new_user.email, 'ver':credential_version(new_user)})
     return AuthResponse(accessToken=access_token, userEmail=new_user.email)
 
 @app.post("/api/auth/login", response_model=AuthResponse)
@@ -84,7 +110,7 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
     if not user or not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    access_token = create_access_token(data={"sub": user.email})
+    access_token = create_access_token(data={"sub": user.email, 'ver':credential_version(user)})
     return AuthResponse(accessToken=access_token, userEmail=user.email)
 
 # --- Holdings Sync ---
@@ -168,7 +194,7 @@ def search_screener(query: Optional[str] = None, riskLevel: Optional[str] = None
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/earnings/transcript/{ticker}")
-def get_transcript(ticker: str, year: int = 2026, quarter: int = 3):
+def get_transcript(ticker: str, year: int = 2026, quarter: int = 3, current_user: User = Depends(get_current_user)):
     from data.earnings import get_earnings_transcript
     try:
         return get_earnings_transcript(ticker, year, quarter)
@@ -181,7 +207,7 @@ def get_transcript(ticker: str, year: int = 2026, quarter: int = 3):
 def get_risk_mesh(request: RiskMeshRequest):
     from quant.risk_mesh import calculate_exposure_mesh
     try:
-        return calculate_exposure_mesh(request.tickers, request.weights)
+        return calculate_exposure_mesh(request.tickers, request.weights,request.benchmark,request.base_currency)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -189,7 +215,7 @@ def get_risk_mesh(request: RiskMeshRequest):
 def get_optimization(request: OptimizeRequest):
     from quant.optimizer import optimize_portfolio_mvo
     try:
-        return optimize_portfolio_mvo(request.tickers, request.views)
+        return optimize_portfolio_mvo(request.tickers, request.views,request.base_currency)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -200,7 +226,7 @@ def run_stress_test(request: Dict[str, Any]):
         tickers = request.get("tickers", [])
         weights = request.get("weights", [])
         scenario = request.get("scenarioId", "rate_hike")
-        return calculate_macro_stress_test(tickers, weights, scenario)
+        return calculate_macro_stress_test(tickers, weights, scenario,request.get('base_currency'))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -216,7 +242,7 @@ def get_finny_report(current_user: User = Depends(get_current_user), session: Se
 # --- AI Agents & Committee ---
 
 @app.post("/api/agents/debate")
-def run_debate(request: TickerListRequest):
+def run_debate(request: TickerListRequest, current_user: User = Depends(get_current_user)):
     from agents.committee import run_committee_debate
     try:
         return run_committee_debate(request.tickers)
@@ -224,7 +250,7 @@ def run_debate(request: TickerListRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/agents/consult")
-async def run_consult(request: ConsultRequest):
+async def run_consult(request: ConsultRequest, current_user: User = Depends(get_current_user)):
     from agents.orchestrator import run_consultation
     try:
         return await run_consultation(request.query)
@@ -239,6 +265,9 @@ def read_root():
 def provider_status(current_user: User = Depends(get_current_user)):
     return {'groqConfigured':bool(os.getenv('GROQ_API_KEY')), 'roicConfigured':bool(os.getenv('ROIC_API_KEY')),
             'marketProvider':'Yahoo Finance', 'revision':os.getenv('RENDER_GIT_COMMIT','local')}
+
+from account_api import install_account_routes
+install_account_routes(app, get_current_user, oauth2_scheme)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

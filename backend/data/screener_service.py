@@ -38,7 +38,7 @@ def search_tickers_catalog(query: Optional[str] = None, sector: Optional[str] = 
         catalog = [c for c in catalog if sector.lower() in c['sector'].lower()]
     return catalog
 
-def calculate_macro_stress_test(tickers: List[str], weights: List[float], scenario_id: str) -> Dict[str, Any]:
+def calculate_macro_stress_test(tickers: List[str], weights: List[float], scenario_id: str, base_currency=None) -> Dict[str, Any]:
     import numpy as np
     from quant.history import returns_for
     if len(tickers)!=len(weights) or not weights or any(not np.isfinite(w) or w<0 for w in weights) or sum(weights)<=0:
@@ -50,7 +50,7 @@ def calculate_macro_stress_test(tickers: List[str], weights: List[float], scenar
     if scenario_id not in windows:
         raise ValueError('Unknown scenario')
     start,end,label = windows[scenario_id]
-    history = returns_for(tickers, period='5y')
+    history = returns_for(tickers, period='5y',base_currency=base_currency)
     w = np.array(weights)/sum(weights)
     portfolio = history @ w
     stressed = portfolio.loc[start:end]
