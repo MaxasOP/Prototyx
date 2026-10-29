@@ -21,19 +21,21 @@ fun DoubleBezelCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val shape = MaterialTheme.shapes.small
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .72f)),
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            content = content
-        )
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            content()
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
     }
 }
 
@@ -116,7 +118,7 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         modifier = modifier.heightIn(min = 52.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.small,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -172,11 +174,7 @@ fun EmptyState(
         modifier = modifier.fillMaxWidth().padding(vertical = 32.dp, horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .2f), RoundedCornerShape(14.dp))
-        )
+        HorizontalDivider(Modifier.width(40.dp), color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(16.dp))
         Text(title, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(6.dp))

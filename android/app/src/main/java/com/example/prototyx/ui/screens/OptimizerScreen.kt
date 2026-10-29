@@ -92,7 +92,7 @@ fun OptimizerScreen(
                     OutlinedTextField(
                         value = viewInput,
                         onValueChange = { viewInput = it },
-                        label = { Text("Exp. Return", fontSize = 11.sp) },
+                        label = { Text("Return (0.1 = 10%)", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -109,6 +109,10 @@ fun OptimizerScreen(
                         onClick = {
                             val ticker = tickerInput.trim().uppercase()
                             val expectedReturn = viewInput.toDoubleOrNull()
+                            if (viewInput.isNotBlank() && (expectedReturn == null || !expectedReturn.isFinite() || expectedReturn !in -1.0..1.0)) {
+                                errorMessage = "Use a decimal return between -1 and 1."
+                                return@Button
+                            }
                             if (ticker.isNotEmpty()) {
                                 if (!universe.contains(ticker)) universe = universe + ticker
                                 if (expectedReturn != null) {
@@ -153,6 +157,7 @@ fun OptimizerScreen(
                 if (universe.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     MetadataLabel(text = "Universe: ${universe.joinToString(", ")}")
+                    TextButton(onClick = { universe = emptyList(); views = emptyMap(); optimizationResult = null }) { Text("Clear assets and views") }
                     if (views.isNotEmpty()) {
                         Text(
                             text = "Views: ${views.map { "${it.key}=${(it.value*100).toInt()}%" }.joinToString(", ")}",
@@ -197,10 +202,18 @@ fun OptimizerScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     MetadataLabel(text = "REBALANCE")
+                    PrimaryButton(text = "Apply target allocation", onClick = {
+                        coroutineScope.launch {
+                            try { repository.replaceHoldings(res.weights.mapValues { it.value.toFloat() }); errorMessage = "Target allocation saved." }
+                            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                            catch (e: Exception) { errorMessage = "Could not complete cloud sync: ${e.message}" }
+                        }
+                    }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(14.dp))
 
                     val totalHoldingsWeight = portfolioHoldings.values.sum().let { if (it > 0f) it else 1f }
-                    res.weights.forEach { (ticker, targetWeight) ->
+                    (res.weights.keys + portfolioHoldings.keys).forEach { ticker ->
+                        val targetWeight = res.weights[ticker] ?: 0.0
                         val currentWeight = ((portfolioHoldings[ticker] ?: 0f) / totalHoldingsWeight).toDouble()
                         val delta = targetWeight - currentWeight
                         val action = when {

@@ -33,16 +33,24 @@ fun ScreenerScreen(
     var userMode by remember { mutableStateOf(UserExperienceMode.PRO) }
     var results by remember { mutableStateOf<List<ScreenerResultItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(queryText) {
         isLoading = true
-        results = repository.searchScreener(queryText)
-        isLoading = false
+        errorMessage = null
+        try {
+            kotlinx.coroutines.delay(350)
+            results = repository.searchScreener(queryText)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
+            results = emptyList()
+            errorMessage = "Search unavailable. Check your connection and try again."
+        } finally { isLoading = false }
     }
 
     val presetQueries = listOf(
-        "Dividend quality",
-        "High growth technology",
+        "TCS",
+        "AAPL",
         "Undervalued large caps",
         "Low RSI momentum"
     )
@@ -53,7 +61,7 @@ fun ScreenerScreen(
             .padding(16.dp)
     ) {
         EditorialHeading(text = "Equity screen")
-        MetadataLabel(text = "SEARCH BY COMPANY, METRIC OR INVESTMENT STYLE")
+        MetadataLabel(text = "SEARCH THE SUPPORTED COMPANY CATALOG")
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -68,7 +76,7 @@ fun ScreenerScreen(
         OutlinedTextField(
             value = queryText,
             onValueChange = { queryText = it },
-            placeholder = { Text("Search stocks, e.g. 'Safe tech stocks with P/E < 30'...", fontSize = 12.sp) },
+            placeholder = { Text("Company or ticker, e.g. AAPL or TCS", fontSize = 12.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -95,6 +103,10 @@ fun ScreenerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (!isLoading && results.isEmpty() && errorMessage == null) {
+            Text("No supported companies match this search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -154,10 +166,10 @@ fun ScreenerResultCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Price: ₹${item.price}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "P/E: ${item.peRatio}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Yield: ${item.dividendYield}%", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "RSI: ${item.rsi}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "${item.currency.orEmpty()} ${item.price}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "P/E: ${item.peRatio ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Yield: ${item.dividendYield?.let { "$it%" } ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "RSI: ${item.rsi ?: "—"}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }

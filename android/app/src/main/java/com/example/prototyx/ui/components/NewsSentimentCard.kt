@@ -1,6 +1,7 @@
 package com.example.prototyx.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,13 +23,17 @@ fun NewsSentimentCard(
     modifier: Modifier = Modifier,
     userMode: UserExperienceMode = UserExperienceMode.PRO
 ) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     val (badgeBg, badgeText) = when (item.sentiment.uppercase()) {
         "BULLISH" -> MaterialTheme.colorScheme.tertiary to "POSITIVE"
         "BEARISH" -> MaterialTheme.colorScheme.error to "NEGATIVE"
+        "UNASSESSED" -> MaterialTheme.colorScheme.onSurfaceVariant to "NOT ASSESSED"
         else -> MaterialTheme.colorScheme.secondary to "NEUTRAL"
     }
 
-    DoubleBezelCard(modifier = modifier) {
+    DoubleBezelCard(modifier = modifier.clickable(enabled = item.url?.startsWith("https://") == true) {
+        item.url?.let { uriHandler.openUri(it) }
+    }) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

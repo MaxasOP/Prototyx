@@ -69,6 +69,12 @@ class VoiceAssistantManager(
             isTtsReady = (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED)
             tts?.setSpeechRate(0.95f)
             tts?.setPitch(1.0f)
+            tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+                override fun onDone(utteranceId: String?) { coroutineScope.launch(Dispatchers.Main) { isSpeaking = false } }
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) { coroutineScope.launch(Dispatchers.Main) { isSpeaking = false } }
+            })
         }
     }
 
@@ -87,6 +93,11 @@ class VoiceAssistantManager(
         }
         stopSpeaking()
         recognizedText = ""
+        if (speechRecognizer == null) {
+            isListening = false
+            statusMessage = "Speech recognition unavailable. Type your question instead."
+            return
+        }
         isListening = true
         statusMessage = "Listening for market query or asset command..."
 

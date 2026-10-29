@@ -245,12 +245,7 @@ fun CommitteeScreen(
             // Display Debate Result
             debateResult?.let { res ->
                 item(key = "debate_consensus_badge") {
-                    ExecutiveConsensusCard(
-                        actionVerdict = "ACCUMULATE CORE ALLOCATION",
-                        badgeColor = Color(0xFF2E7D32),
-                        confidence = 88,
-                        takeaway = "Fundamental and Technical agents agree on growth acceleration across current selections. Risk & Compliance agents enforce a 25% max position limit to contain sector drawdowns."
-                    )
+                    SectionHeader(title = "Research perspectives", supportingText = "${res.mode.orEmpty()}. No calibrated confidence score or trading instruction is implied.")
                 }
 
                 item(key = "debate_logs_header") {

@@ -7,6 +7,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PrototyxDao {
+    @Transaction
+    suspend fun replaceHoldings(holdings: List<Holding>) {
+        clearHoldings()
+        insertHoldings(holdings)
+    }
+
     @Query("SELECT * FROM holdings")
     fun getHoldingsFlow(): Flow<List<Holding>>
 

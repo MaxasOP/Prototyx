@@ -17,11 +17,23 @@ object RetrofitInstance {
         authManager?.getToken()?.let { token ->
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
-        chain.proceed(requestBuilder.build())
+        val response = chain.proceed(requestBuilder.build())
+        if (!response.isSuccessful) {
+            if (response.code == 401) authManager?.clearToken()
+            val detail = try {
+                com.google.gson.JsonParser.parseString(response.peekBody(8192).string()).asJsonObject.get("detail")?.let {
+                    if (it.isJsonPrimitive) it.asString else "Check the entered values."
+                }
+            } catch (_: Exception) { null }
+            val message = if (response.code == 401) "Session expired or credentials invalid. Sign in again." else detail ?: "Service unavailable (HTTP ${response.code}). Try again."
+            response.close()
+            throw java.io.IOException(message)
+        }
+        response
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = HttpLoggingInterceptor.Level.NONE
     }
 
     private fun buildOkHttpClient(): OkHttpClient {

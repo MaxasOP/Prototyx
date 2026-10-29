@@ -25,10 +25,11 @@ fun StockChartView(
     ticker: String,
     pricePoints: List<PricePoint>,
     modifier: Modifier = Modifier,
-    isCandleStyle: Boolean = false
+    isCandleStyle: Boolean = false,
+    selectedPeriod: String = "1M",
+    onPeriodChanged: (String) -> Unit = {}
 ) {
     var selectedPointIndex by remember { mutableStateOf<Int?>(null) }
-    var selectedPeriod by remember { mutableStateOf("1M") }
     var chartVisible by remember(pricePoints) { mutableStateOf(false) }
     LaunchedEffect(pricePoints) { chartVisible = true }
     val revealProgress by androidx.compose.animation.core.animateFloatAsState(
@@ -64,7 +65,7 @@ fun StockChartView(
                     periods.forEach { p ->
                         FilterChip(
                             selected = (selectedPeriod == p),
-                            onClick = { selectedPeriod = p },
+                            onClick = { selectedPointIndex = null; onPeriodChanged(p) },
                             label = { Text(p, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             modifier = Modifier.height(28.dp)
                         )
@@ -93,7 +94,7 @@ fun StockChartView(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "₹${String.format("%.2f", activePoint.close)}",
+                        text = String.format("%.2f", activePoint.close),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
@@ -110,6 +111,7 @@ fun StockChartView(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+                Text(activePoint.timestamp, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Box(
                     modifier = Modifier

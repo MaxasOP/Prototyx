@@ -42,6 +42,7 @@ import com.example.prototyx.ui.components.FinnyState
 import com.example.prototyx.ui.screens.*
 import com.example.prototyx.ui.voice.VoiceAssistantManager
 import com.example.prototyx.ui.voice.VoiceCoPilotSheet
+import kotlinx.coroutines.launch
 
 sealed class BottomBarTab(val route: NavKey, val icon: ImageVector, val title: String) {
     object Dashboard : BottomBarTab(Main, Icons.Outlined.Home, "Portfolio")
@@ -70,6 +71,12 @@ fun MainNavigation(
 
     val startDestination = if (authManager.getToken() != null) Main else Login
     val backStack = rememberNavBackStack(startDestination)
+    androidx.compose.runtime.LaunchedEffect(authManager.sessionExpired) {
+        if (authManager.sessionExpired) {
+            backStack.clear()
+            backStack.add(Login)
+        }
+    }
 
     val tabs = listOf(
         BottomBarTab.Dashboard,
@@ -143,7 +150,7 @@ fun MainNavigation(
                 NavigationBar(
                     modifier = Modifier.border(
                         1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .7f),
-                        RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                        RoundedCornerShape(0.dp)
                     ),
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .98f),
                     tonalElevation = 0.dp
@@ -161,19 +168,19 @@ fun MainNavigation(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
                                     modifier = Modifier.size(20.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = {
                                 Text(
-                                    text = tab.title.uppercase(),
-                                    fontSize = 8.sp,
+                                    text = tab.title,
+                                    fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                     letterSpacing = 0.5.sp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
-                            alwaysShowLabel = false,
+                            alwaysShowLabel = true,
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = Signal.copy(alpha = .12f),
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -194,6 +201,7 @@ fun MainNavigation(
         }
 
         NavDisplay(
+            modifier = Modifier.padding(bottom = if (currentScreen::class == Login::class) 0.dp else 72.dp),
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
             entryProvider = entryProvider {
@@ -202,8 +210,14 @@ fun MainNavigation(
                         repository = repository,
                         onLoginSuccess = { token ->
                             authManager.saveToken(token)
-                            backStack.clear()
-                            backStack.add(Main)
+                            coroutineScope.launch {
+                                // A new login restores the account snapshot before showing the portfolio.
+                                try { repository.restoreHoldings() }
+                                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (_: Exception) { /* Dashboard exposes sync retry. */ }
+                                backStack.clear()
+                                backStack.add(Main)
+                            }
                         },
                         modifier = Modifier.padding(innerPadding)
                     )

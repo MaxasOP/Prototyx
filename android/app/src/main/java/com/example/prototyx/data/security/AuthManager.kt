@@ -5,9 +5,15 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 
 class AuthManager(context: Context) {
-    private val sharedPreferences: SharedPreferences = try {
+    var sessionExpired by mutableStateOf(false)
+        private set
+    private var sessionToken: String? = null
+    private val sharedPreferences: SharedPreferences? = try {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -20,32 +26,32 @@ class AuthManager(context: Context) {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     } catch (e: Exception) {
-        Log.e("AuthManager", "Failed to initialize EncryptedSharedPreferences, falling back to standard prefs", e)
-        // Delete corrupted preferences file if KeyStore issue occurred
-        try {
-            context.deleteSharedPreferences("secure_auth_prefs")
-        } catch (_: Exception) {}
-        context.getSharedPreferences("secure_auth_prefs_fallback", Context.MODE_PRIVATE)
+        Log.e("AuthManager", "Secure storage unavailable; login is limited to this session", e)
+        null
     }
 
     fun saveToken(token: String) {
-        try { sharedPreferences.edit().putString(KEY_TOKEN, token).apply() } catch (_: Exception) {}
+        sessionExpired = false
+        sessionToken = token
+        sharedPreferences?.edit()?.putString(KEY_TOKEN, token)?.apply()
     }
 
     fun getToken(): String? {
-        return try { sharedPreferences.getString(KEY_TOKEN, null) } catch (_: Exception) { null }
+        return sessionToken ?: try { sharedPreferences?.getString(KEY_TOKEN, null) } catch (_: Exception) { null }
     }
 
     fun clearToken() {
-        try { sharedPreferences.edit().remove(KEY_TOKEN).apply() } catch (_: Exception) {}
+        sessionExpired = true
+        sessionToken = null
+        sharedPreferences?.edit()?.remove(KEY_TOKEN)?.apply()
     }
 
     fun hasAcceptedDisclaimer(): Boolean {
-        return try { sharedPreferences.getBoolean(KEY_DISCLAIMER_ACCEPTED, true) } catch (_: Exception) { true }
+        return try { sharedPreferences?.getBoolean(KEY_DISCLAIMER_ACCEPTED, false) ?: false } catch (_: Exception) { false }
     }
 
     fun setAcceptedDisclaimer(accepted: Boolean) {
-        try { sharedPreferences.edit().putBoolean(KEY_DISCLAIMER_ACCEPTED, accepted).apply() } catch (_: Exception) {}
+        sharedPreferences?.edit()?.putBoolean(KEY_DISCLAIMER_ACCEPTED, accepted)?.apply()
     }
 
     companion object {

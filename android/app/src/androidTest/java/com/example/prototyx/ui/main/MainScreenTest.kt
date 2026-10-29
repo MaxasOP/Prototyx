@@ -1,26 +1,31 @@
 package com.example.prototyx.ui.main
 
-import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import org.junit.Before
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.*
+import com.example.prototyx.data.MockDataRepository
+import com.example.prototyx.theme.PrototyxTheme
+import com.example.prototyx.ui.screens.*
 import org.junit.Rule
 import org.junit.Test
 
-/** UI tests for [com.example.prototyx.ui.main.MainScreen]. */
 class MainScreenTest {
+    @get:Rule val rule = createComposeRule()
 
-  @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    @Test fun earningsRejectsBlankTicker() {
+        rule.setContent { PrototyxTheme { EarningsScreen(MockDataRepository()) } }
+        rule.onNodeWithText("Open transcript").performClick()
+        rule.onNodeWithText("Enter a ticker, fiscal year and quarter from 1 to 4.").assertExists()
+    }
 
-  @Before
-  fun setup() {
-    composeTestRule.setContent { MainScreen(FAKE_DATA) }
-  }
+    @Test fun optimizerShowsResultsForSelectedAssets() {
+        rule.setContent { PrototyxTheme { OptimizerScreen(MockDataRepository()) } }
+        rule.onNodeWithText("Solve Weights").performScrollTo().performClick()
+        rule.onNodeWithText("Apply target allocation").performScrollTo().assertExists()
+    }
 
-  @Test
-  fun firstItem_exists() {
-    FAKE_DATA.forEach { composeTestRule.onNodeWithText("Hello $it!").assertExists() }
-  }
+    @Test fun researchDoesNotShowFabricatedConsensus() {
+        rule.setContent { PrototyxTheme { CommitteeScreen(MockDataRepository()) } }
+        rule.onNodeWithText("ACCUMULATE CORE ALLOCATION").assertDoesNotExist()
+        rule.onNodeWithText("88% agreement").assertDoesNotExist()
+    }
 }
-
-private val FAKE_DATA = listOf("Sample1", "Sample2", "Sample3")

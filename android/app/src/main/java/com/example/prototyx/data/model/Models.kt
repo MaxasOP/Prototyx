@@ -186,7 +186,8 @@ data class NewsSentimentItem(
     val sentiment: String, // "BULLISH", "NEUTRAL", "BEARISH"
     val sentimentScore: Float, // -1.0 to 1.0
     val aiImpactAnalysis: String,
-    val plainEnglishSummary: String
+    val plainEnglishSummary: String,
+    val url: String? = null
 )
 
 data class ScreenerResultItem(
@@ -195,12 +196,13 @@ data class ScreenerResultItem(
     val sector: String,
     val price: Float,
     val changePercent: Float,
-    val peRatio: Float,
-    val dividendYield: Float,
-    val rsi: Float,
+    val peRatio: Float?,
+    val dividendYield: Float?,
+    val rsi: Float?,
     val riskLevel: String, // "SAFE", "BALANCED", "GROWTH"
     val aiAnalysis: String,
-    val plainEnglishSummary: String
+    val plainEnglishSummary: String,
+    val currency: String? = null
 )
 
 data class StressTestRequest(

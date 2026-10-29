@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class MockDataRepository : DataRepository {
+    override suspend fun replaceHoldings(holdings: Map<String, Float>) {}
     override val holdings: Flow<Map<String, Float>> = flow { emit(mapOf("TCS" to 0.30f, "RELIANCE" to 0.40f, "AAPL" to 0.20f, "INFY" to 0.10f)) }
 
     override suspend fun login(request: LoginRequest): AuthResponse {

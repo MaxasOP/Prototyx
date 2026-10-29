@@ -93,12 +93,17 @@ fun RiskMeshScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     isStressLoading = true
-                                    val tickers = if (meshHoldings.isNotEmpty()) meshHoldings.keys.toList() else listOf("TCS", "RELIANCE")
-                                    val weights = if (meshHoldings.isNotEmpty()) meshHoldings.values.toList() else listOf(0.5, 0.5)
-                                    stressTestResult = repository.runStressTest(tickers, weights, id)
-                                    isStressLoading = false
+                                    errorMessage = null
+                                    stressTestResult = null
+                                    try {
+                                        require(meshHoldings.isNotEmpty()) { "Add holdings before running a historical replay." }
+                                        stressTestResult = repository.runStressTest(meshHoldings.keys.toList(), meshHoldings.values.toList(), id)
+                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                    catch (e: Exception) { errorMessage = e.message ?: "Historical replay unavailable" }
+                                    finally { isStressLoading = false }
                                 }
                             },
+                            enabled = !isStressLoading,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -195,7 +200,11 @@ fun RiskMeshScreen(
                     Button(
                         onClick = {
                             val ticker = tickerInput.trim().uppercase()
-                            val weight = weightInput.toDoubleOrNull() ?: 0.0
+                            val weight = weightInput.toDoubleOrNull()
+                            if (weight == null || !weight.isFinite() || weight < 0 || weight > 1) {
+                                errorMessage = "Enter a finite decimal weight from 0 to 1."
+                                return@Button
+                            }
                             if (ticker.isNotEmpty()) {
                                 val newHoldings = meshHoldings.toMutableMap()
                                 if (weight > 0) newHoldings[ticker] = weight else newHoldings.remove(ticker)

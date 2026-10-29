@@ -1,6 +1,8 @@
 package com.example.prototyx.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -40,14 +42,18 @@ fun LoginScreen(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.Start
         ) {
             EditorialHeading(text = "Prototyx")
             Spacer(modifier = Modifier.height(8.dp))
             MetadataLabel(text = "PRIVATE WEALTH OPERATING SYSTEM")
             
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(if (isLoginMode) "Return to your research." else "Build your investment workspace.", style = MaterialTheme.typography.headlineLarge)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Portfolio allocation, market research and risk analysis in one place.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(24.dp))
             
             Text(
                 text = if (isLoginMode) "SIGN IN" else "CREATE ACCOUNT",
@@ -95,7 +101,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             PrimaryButton(
-                text = if (isLoginMode) "LOGIN" else "REGISTER",
+                text = if (isLoginMode) "Sign in" else "Create account",
                 onClick = {
                     coroutineScope.launch {
                         isLoading = true
@@ -144,8 +150,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(48.dp))
             
             MetadataLabel(
-                text = "SECURE ENCRYPTION ACTIVE",
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                text = "PROTOTYX / INVESTMENT RESEARCH",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

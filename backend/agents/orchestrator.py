@@ -46,7 +46,7 @@ async def news_researcher_worker(query: str) -> Dict[str, Any]:
     print(f"DEBUG: News Researcher searching for '{query}'...")
     try:
         # Try a few queries to ensure we get some results
-        queries = [query, query.split(" ")[0] + " price news", "crypto market sentiment"]
+        queries = [query, query.split(" ")[0] + " price news"]
         all_results = []
         
         with DDGS() as ddgs:

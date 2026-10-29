@@ -68,6 +68,7 @@ fun DashboardScreen(
     val holdings by repository.holdings.collectAsState(initial = emptyMap())
     val coroutineScope = rememberCoroutineScope()
     var selectedTicker by remember { mutableStateOf("") }
+    var chartPeriod by remember { mutableStateOf("1M") }
     var tickerData by remember { mutableStateOf<MarketIndicatorsResponse?>(null) }
     var chartData by remember { mutableStateOf<StockChartResponse?>(null) }
     var newsFeed by remember { mutableStateOf<List<NewsSentimentItem>>(emptyList()) }
@@ -90,18 +91,24 @@ fun DashboardScreen(
         Color(0xFF1F6C9F), Color(0xFF4CAF50), Color(0xFF9C27B0), Color(0xFFFF9800)
     )
 
-    LaunchedEffect(Unit) {
-        finnyReport = repository.getFinnyReport()
-        newsFeed = repository.getNewsSentiment()
+    LaunchedEffect(holdings) {
+        try { finnyReport = repository.getFinnyReport() }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { searchError = "Portfolio briefing unavailable. Please try again later." }
+        try { newsFeed = repository.getNewsSentiment() }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { searchError = "News unavailable. Please try again later." }
     }
 
-    LaunchedEffect(selectedTicker) {
+    LaunchedEffect(selectedTicker, chartPeriod) {
         if (selectedTicker.isNotEmpty()) {
             isLoading = true
+            chartData = null
+            tickerData = null
             searchError = null
             try {
                 tickerData = repository.getIndicators(selectedTicker)
-                chartData = repository.getStockChart(selectedTicker)
+                chartData = repository.getStockChart(selectedTicker, chartPeriod)
             } catch (e: Exception) {
                 searchError = "Could not load $selectedTicker: ${e.message ?: "Unknown error"}"
             } finally {
@@ -145,17 +152,17 @@ fun DashboardScreen(
                 score >= 80 -> Triple(
                     "ROBUST ALLOCATION",
                     Mint,
-                    "Portfolio is resilient across $totalAssets holdings. No single stock exceeds 45% capital allocation."
+                    "$totalAssets holdings. Largest normalized weight: ${(maxWeight * 100).toInt()}%. This measures concentration only, not market risk."
                 )
                 score >= 60 -> Triple(
                     "MODERATE CONCENTRATION",
                     com.example.prototyx.theme.Amber,
-                    "Top holding represents ${(maxWeight * 100).toInt()}% of portfolio. Rebalance recommended to limit sector drawdown."
+                    "Top holding represents ${(maxWeight * 100).toInt()}% of portfolio. Sector and market risks are not assessed by this score."
                 )
                 else -> Triple(
                     "HIGH VULNERABILITY",
                     Coral,
-                    "Elevated single-asset concentration (${(maxWeight * 100).toInt()}%). Add defensive counterweights or hedge exposure."
+                    "Largest normalized allocation: ${(maxWeight * 100).toInt()}%. Review concentration alongside the historical risk analysis."
                 )
             }
             PortfolioHealthReport(score, status, color, diagnosis)
@@ -167,22 +174,19 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(28.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // Hero Header
         item(key = "heading") {
             Box(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 148.dp)
             ) {
-                MarketAtmosphere(
-                    modifier = Modifier.fillMaxWidth(.64f).height(112.dp).align(Alignment.BottomEnd)
-                )
-                Column(modifier = Modifier.align(Alignment.TopStart).fillMaxWidth(.72f)) {
-                    MetadataLabel(text = "PROTOTYX · PRIVATE WEALTH")
+                Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+                    MetadataLabel(text = "YOUR WEALTH, IN PERSPECTIVE")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Portfolio", style = MaterialTheme.typography.headlineLarge)
+                    Text("Your portfolio.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Allocation, risk and relevant market context", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("A clearer view of what you own and what comes next.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Row(
@@ -239,6 +243,34 @@ fun DashboardScreen(
         }
 
         // Mode Toggle (Simple vs Pro)
+        item(key = "allocation_overview") {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Text("ALLOCATION OVERVIEW", fontSize = 10.sp, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("${holdings.size}", fontSize = 48.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text("assets in your portfolio", modifier = Modifier.padding(bottom = 10.dp), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Text("Select a holding to explore its market performance.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    if (holdings.isNotEmpty()) {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            holdings.forEach { (ticker, weight) ->
+                                FilterChip(
+                                    selected = selectedTicker == ticker,
+                                    onClick = { selectedTicker = ticker },
+                                    label = { Text("$ticker  ${(weight * 100).toInt()}%") }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (syncError != null || searchError != null) {
+            item(key = "dashboard_error") {
+                Text(syncError ?: searchError.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
         item(key = "mode_toggle") {
             ModeToggleBar(
                 currentMode = userMode,
@@ -261,7 +293,7 @@ fun DashboardScreen(
         // Quick-Test Baskets
         item(key = "presets_row") {
             Column {
-                SectionHeader(title = "Model portfolios", supportingText = "Replace the current allocation with a reference strategy")
+                SectionHeader(title = "Find your strategy", supportingText = "Choose a model to replace your current allocation")
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(
                     modifier = Modifier
@@ -274,12 +306,9 @@ fun DashboardScreen(
                             basket = basket,
                             onClick = {
                                 coroutineScope.launch {
-                                    holdings.keys.forEach { oldTicker ->
-                                        repository.removeHolding(oldTicker)
-                                    }
-                                    basket.holdings.forEach { (ticker, weight) ->
-                                        repository.updateHolding(ticker, weight)
-                                    }
+                                    try { repository.replaceHoldings(basket.holdings) }
+                                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                    catch (e: Exception) { syncError = "Allocation saved locally; cloud sync failed." }
                                     selectedTicker = basket.holdings.keys.first()
                                 }
                             }
@@ -291,11 +320,7 @@ fun DashboardScreen(
 
         // Portfolio Health Meter or Simple Risk Gauge
         item(key = "health_scorecard") {
-            if (userMode == UserExperienceMode.SIMPLE) {
-                SimpleRiskGauge(status = healthReport.status)
-            } else {
-                PortfolioHealthCard(report = healthReport)
-            }
+            PortfolioHealthCard(report = healthReport)
         }
 
         // Interactive Stock Charting Engine
@@ -304,7 +329,9 @@ fun DashboardScreen(
                 chartData?.let { data ->
                     StockChartView(
                         ticker = data.ticker,
-                        pricePoints = data.pricePoints
+                        pricePoints = data.pricePoints,
+                        selectedPeriod = chartPeriod,
+                        onPeriodChanged = { chartPeriod = it }
                     )
                 }
             }
@@ -347,14 +374,20 @@ fun DashboardScreen(
                     text = "Apply allocation",
                     onClick = {
                         val ticker = searchQuery.trim().uppercase()
-                        val weight = searchWeight.toDoubleOrNull()?.toFloat() ?: 0f
+                        val weight = searchWeight.toFloatOrNull()
+                        if (ticker.isBlank() || weight == null || !weight.isFinite() || weight < 0f || weight > 1f) {
+                            searchError = "Enter a ticker and a decimal weight from 0 to 1. No allocation was changed."
+                            return@PrimaryButton
+                        }
                         if (ticker.isNotEmpty()) {
                             coroutineScope.launch {
-                                if (weight > 0) {
-                                    repository.updateHolding(ticker, weight)
-                                } else {
-                                    repository.removeHolding(ticker)
-                                }
+                                try {
+                                    if (weight > 0) repository.updateHolding(ticker, weight)
+                                    else repository.removeHolding(ticker)
+                                    searchError = null
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                catch (e: IllegalArgumentException) { searchError = e.message }
+                                catch (e: Exception) { syncError = "Saved locally; cloud sync failed. Use sync to retry." }
                             }
                             selectedTicker = ticker
                             searchQuery = ""
@@ -397,15 +430,16 @@ fun PresetBasketChip(
     Surface(
         modifier = Modifier
             .clickable { onClick() }
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
+            .width(152.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = basket.title,
                     fontSize = 12.sp,
@@ -425,12 +459,11 @@ fun PresetBasketChip(
 @Composable
 fun PortfolioHealthCard(report: PortfolioHealthReport) {
     DoubleBezelCard {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            SectionHeader(title = "Portfolio resilience")
+                SectionHeader(title = "Allocation concentration")
             Surface(
                 color = report.statusColor.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(16.dp)
@@ -469,7 +502,7 @@ fun PortfolioHealthCard(report: PortfolioHealthReport) {
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                MetadataLabel(text = "STRESS & RESILIENCE SCORE")
+                MetadataLabel(text = "CONCENTRATION HEURISTIC")
             }
 
             AnimatedScoreRing(score = report.score, color = report.statusColor)

@@ -27,6 +27,8 @@ fun EarningsScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     var tickerInput by remember { mutableStateOf("") }
+    var yearInput by remember { mutableStateOf("2026") }
+    var quarterInput by remember { mutableStateOf("3") }
     
     var transcriptResult by remember { mutableStateOf<EarningsTranscriptResponse?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -65,6 +67,11 @@ fun EarningsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(yearInput, { yearInput = it }, label = { Text("Fiscal year") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(quarterInput, { quarterInput = it }, label = { Text("Quarter (1–4)") }, modifier = Modifier.weight(1f), singleLine = true)
+                }
+                Spacer(Modifier.height(16.dp))
                 PrimaryButton(
                     text = "Open transcript",
                     onClick = {
@@ -73,7 +80,10 @@ fun EarningsScreen(
                             errorMessage = null
                             transcriptResult = null
                             try {
-                                transcriptResult = repository.getTranscript(tickerInput.trim().uppercase())
+                                val year = yearInput.toIntOrNull()
+                                val quarter = quarterInput.toIntOrNull()
+                                require(tickerInput.isNotBlank() && year != null && year in 1990..2100 && quarter != null && quarter in 1..4) { "Enter a ticker, fiscal year and quarter from 1 to 4." }
+                                transcriptResult = repository.getTranscript(tickerInput.trim().uppercase(), year, quarter)
                             } catch (e: Exception) {
                                 errorMessage = e.message ?: "No transcript found for ${tickerInput.uppercase()}"
                             } finally {

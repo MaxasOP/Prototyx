@@ -111,7 +111,7 @@ fun FinnyVirtualAgentCard(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "PORTFOLIO HEALTH $healthScore%",
+                    text = "CONCENTRATION SCORE $healthScore",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = when {

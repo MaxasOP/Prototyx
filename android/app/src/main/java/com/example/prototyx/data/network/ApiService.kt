@@ -8,6 +8,8 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+    @GET("api/holdings")
+    suspend fun getHoldings(): Map<String, Float>
 
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
