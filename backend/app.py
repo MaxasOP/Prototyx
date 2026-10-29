@@ -98,6 +98,8 @@ def sync_holdings(
     import math
     if any(not ticker.strip() or not math.isfinite(weight) or weight < 0 or weight > 1 for ticker, weight in request.holdings.items()):
         raise HTTPException(status_code=422, detail="Weights must be finite decimals between 0 and 1")
+    if sum(request.holdings.values()) > 1.00001:
+        raise HTTPException(status_code=422, detail='Total allocation cannot exceed 100%')
     previous = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
     for holding in previous:
         if holding.ticker not in request.holdings:

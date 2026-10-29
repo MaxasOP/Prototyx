@@ -43,7 +43,18 @@ def fetch_live_news_sentiment(ticker: Optional[str] = None) -> List[Dict[str, An
 
     # Default fallback articles if live search returned 0 items
     if not all_results:
-        raise RuntimeError("News provider returned no articles")
+        import requests
+        import xml.etree.ElementTree as ET
+        feed = requests.get('https://news.google.com/rss/search',
+                            params={'q':f'{ticker or "stock market"} stock when:7d','hl':'en-US','gl':'US','ceid':'US:en'},timeout=15)
+        feed.raise_for_status()
+        root = ET.fromstring(feed.content)
+        for article in root.findall('./channel/item')[:4]:
+            all_results.append({'title':article.findtext('title'), 'body':article.findtext('title'),
+                                'source':article.findtext('source'), 'url':article.findtext('link'),
+                                'published':article.findtext('pubDate')})
+        if not all_results:
+            raise RuntimeError('News providers returned no articles')
 
     news_items = []
     for idx, item in enumerate(all_results[:4]):
@@ -88,7 +99,8 @@ def fetch_live_news_sentiment(ticker: Optional[str] = None) -> List[Dict[str, An
             "id": f"news_{idx}_{uuid.uuid4().hex[:6]}",
             "title": title,
             "source": source,
-            "timestamp": "Publication time unavailable",
+            "timestamp": item.get('published') or "Publication time unavailable",
+            "url": item.get('url') or item.get('href'),
             "tickers": [ticker.upper()] if ticker else ["MARKET", "TECH"],
             "sentiment": sentiment,
             "sentimentScore": sentiment_score,
