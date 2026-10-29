@@ -35,6 +35,10 @@ fun VoiceCoPilotSheet(
     onDismiss: () -> Unit
 ) {
     var manualInput by remember { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val microphonePermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) voiceManager.startListening() }
     DisposableEffect(voiceManager, repository) {
         voiceManager.onSpeechResult = { text -> voiceManager.queryAssistant(text, repository) }
         onDispose { voiceManager.onSpeechResult = null }
@@ -138,7 +142,8 @@ fun VoiceCoPilotSheet(
                         if (voiceManager.isListening) {
                             voiceManager.stopListening()
                         } else {
-                            voiceManager.startListening()
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) voiceManager.startListening()
+                            else microphonePermission.launch(android.Manifest.permission.RECORD_AUDIO)
                         }
                     },
                 contentAlignment = Alignment.Center

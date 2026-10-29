@@ -107,23 +107,10 @@ fun MainNavigation(
     val currentScreen = backStack.lastOrNull() ?: Main
     val showFinny = currentScreen != Login && currentScreen != Account && currentScreen != Notifications
 
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            showVoiceSheet = true
-        } else {
-            showVoiceSheet = true
-        }
-    }
-
     Scaffold(
         floatingActionButton = {
             if (showFinny) ExtendedFloatingActionButton(
-                onClick = {
-                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) showVoiceSheet = true
-                    else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                },
+                onClick = { showVoiceSheet = true },
                 icon = { Icon(FinnyAssistantIcon, contentDescription = null) },
                 text = { Text("Ask Finny") },
                 containerColor = MaterialTheme.colorScheme.primary,

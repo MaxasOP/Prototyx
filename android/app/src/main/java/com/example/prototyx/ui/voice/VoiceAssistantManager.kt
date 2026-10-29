@@ -23,6 +23,8 @@ class VoiceAssistantManager(
     private val coroutineScope: CoroutineScope
 ) : RecognitionListener, TextToSpeech.OnInitListener {
     var onSpeechResult: ((String) -> Unit)? = null
+    var isVoiceAvailable by mutableStateOf(false)
+        private set
 
     var isListening by mutableStateOf(false)
         private set
@@ -55,12 +57,20 @@ class VoiceAssistantManager(
     }
 
     private fun initSpeechRecognizer() {
-        if (SpeechRecognizer.isRecognitionAvailable(context)) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-                setRecognitionListener(this@VoiceAssistantManager)
+        try {
+            isVoiceAvailable = SpeechRecognizer.isRecognitionAvailable(context)
+            if (isVoiceAvailable) {
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                    setRecognitionListener(this@VoiceAssistantManager)
+                }
+                statusMessage = "Ask a question by voice or text."
+            } else {
+                statusMessage = "Voice input is unavailable. You can still type your question."
             }
-        } else {
-            statusMessage = "Speech recognition not supported on this device."
+        } catch (_: Exception) {
+            isVoiceAvailable = false
+            speechRecognizer = null
+            statusMessage = "Could not connect to voice input. You can still type your question."
         }
     }
 
@@ -104,7 +114,7 @@ class VoiceAssistantManager(
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
