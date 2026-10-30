@@ -67,6 +67,13 @@ class MarketRegressions(unittest.TestCase):
             self.assertEqual(json.loads(generate_text('fixture', True)), {'ok': True})
             groq.assert_called_once()
 
+    def test_unrelated_research_answer_is_rejected(self):
+        from agents.orchestrator import research_report
+        with self.assertRaises(ValueError):
+            research_report('NO. That is an invalid base. You can only divide a positive integer by a positive integer.', 'NVDA')
+        with self.assertRaises(ValueError):
+            research_report(json.dumps({'asset': 'AAPL', 'summary': 'Another company'}), 'NVDA')
+
     def test_ai_optimize_actually_saves_weights(self):
         from agents.orchestrator import run_consultation
         from models import User, Holding

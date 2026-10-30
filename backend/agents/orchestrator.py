@@ -3,7 +3,6 @@ import json
 import asyncio
 import math
 from typing import Dict, Any, List
-from duckduckgo_search import DDGS
 from agents.llm import generate_text
 
 async def call_llm(prompt: str, json_mode: bool = False) -> str:
@@ -51,34 +50,29 @@ async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
     except Exception as e:
         return {"ticker": ticker, "status": "error", "message": str(e)}
 
-async def news_researcher_worker(query: str) -> Dict[str, Any]:
-    """
-    📰 News Researcher: Fetches sentiment and FUD via DuckDuckGo Search.
-    """
-    print(f"DEBUG: News Researcher searching for '{query}'...")
+async def news_researcher_worker(ticker: str) -> Dict[str, Any]:
+    """Research uses dated publisher headlines, never generic web-search snippets."""
+    from data.news_service import fetch_live_news_sentiment
     try:
-        # Try a few queries to ensure we get some results
-        queries = [query, query.split(" ")[0] + " price news"]
-        all_results = []
-        
-        with DDGS() as ddgs:
-            for q in queries:
-                results = [r for r in ddgs.text(q, max_results=3)]
-                all_results.extend(results)
-                if len(all_results) >= 5: break
-        
-        if not all_results:
-            return {"query": query, "status": "no_results", "news_snippets": "No recent news found."}
+        articles = fetch_live_news_sentiment(ticker)
+        return {"ticker": ticker, "articles": articles,
+                "status": "success" if articles else "no_results"}
+    except Exception:
+        return {"ticker": ticker, "articles": [], "status": "unavailable"}
 
-        snippets = "\n".join([f"- {r['title']}: {r['body']}" for r in all_results])
-        
-        return {
-            "query": query,
-            "news_snippets": snippets,
-            "status": "success"
-        }
-    except Exception as e:
-        return {"query": query, "status": "error", "message": str(e)}
+
+def research_report(content, ticker):
+    """Reject malformed or unrelated provider replies before displaying research."""
+    report = json.loads(content)
+    if not isinstance(report, dict) or report.get('asset') != ticker:
+        raise ValueError('Research response does not match the requested asset')
+    fields = [('summary', 'Investment case'), ('valuation_risks', 'Valuation risks'),
+              ('key_uncertainties', 'Key uncertainties')]
+    for key, _ in fields:
+        if not isinstance(report.get(key), str) or len(report[key].strip()) < 20:
+            raise ValueError('Research response is incomplete')
+    return ticker + ' research\n\n' + '\n\n'.join(label + ': ' + report[key].strip() for key, label in fields)
+
 
 from sqlmodel import Session, select
 from models import User, Holding
@@ -187,7 +181,7 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
 
     # 2. Parallel Execution (Step 2: Workers)
     data_task = asyncio.to_thread(lambda: asyncio.run(data_analyst_worker(ticker)))
-    news_task = asyncio.to_thread(lambda: asyncio.run(news_researcher_worker(f"{ticker} investment news sentiment")))
+    news_task = asyncio.to_thread(lambda: asyncio.run(news_researcher_worker(ticker)))
     
     data_results, news_results = await asyncio.gather(data_task, news_task)
     if data_results.get('status') != 'success' or data_results.get('price') is None:
@@ -213,15 +207,17 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     - Only use supplied observations; acknowledge their dates and missing data. Do not invent facts.
     - Use professional, direct language.
     - NO markdown (no **, no ###, no *).
-    - Provide: 
-        1. STRATEGY SUMMARY
-        2. RISK RATING
-        3. FINAL VERDICT (BUY/SELL/HOLD/WAIT/ACTION COMPLETED)
-    - Keep it under 150 words.
+    - Answer the user's specific research question about {ticker}.
+    - Never infer that a valuation is cheap or expensive without comparable evidence.
+    - Publisher headlines alone cannot establish financial performance or a buy/sell verdict.
+    - Clearly state which fundamental evidence is missing. Do not invent a risk rating.
+    - Return ONLY JSON with asset exactly "{ticker}", summary, valuation_risks, key_uncertainties.
+    - Each research field must be a substantive string of at least 20 characters.
+    - Keep the total under 200 words.
     """
 
     try:
-        final_report = (await call_llm(synthesis_prompt)).strip()
+        final_report = research_report(await call_llm(synthesis_prompt, json_mode=True), ticker)
     except Exception as e:
         print(f"LLM synthesis failed, using deterministic fallback: {e}")
         p = data_results.get('price', 'N/A')
