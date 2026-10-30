@@ -121,10 +121,20 @@ fun DashboardScreen(
             tickerData = null
             searchError = null
             try {
-                tickerData = repository.getIndicators(selectedTicker)
-                chartData = repository.getStockChart(selectedTicker, chartPeriod)
-            } catch (e: Exception) {
-                searchError = "Could not load $selectedTicker: ${e.message ?: "Unknown error"}"
+                try {
+                    chartData = repository.getStockChart(selectedTicker, chartPeriod)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    searchError = "Could not load chart for $selectedTicker: ${e.message}"
+                }
+                try {
+                    tickerData = repository.getIndicators(selectedTicker)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    searchError = listOfNotNull(searchError, "Indicators unavailable: ${e.message}").joinToString(". ")
+                }
             } finally {
                 isLoading = false
             }

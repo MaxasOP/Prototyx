@@ -169,40 +169,60 @@ def get_indicators(ticker: str):
     from data.market_data import get_latest_metrics
     try:
         return get_latest_metrics(ticker)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/api/market/chart/{ticker}")
 def get_stock_chart(ticker: str, period: str = "1M"):
     from data.market_data import get_stock_chart as fetch_chart
     try:
         return fetch_chart(ticker, period)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/api/news/sentiment")
 def get_news_sentiment(ticker: Optional[str] = None):
     from data.news_service import fetch_live_news_sentiment
     try:
         return fetch_live_news_sentiment(ticker)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/api/screener/search")
 def search_screener(query: Optional[str] = None, riskLevel: Optional[str] = None):
     from data.screener_service import search_screener_items
     try:
         return search_screener_items(query, riskLevel)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/api/earnings/transcript/{ticker}")
 def get_transcript(ticker: str, year: int = 2026, quarter: int = 3, current_user: User = Depends(get_current_user)):
     from data.earnings import get_earnings_transcript
     try:
         return get_earnings_transcript(ticker, year, quarter)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 # --- Quantitative & Risk Engines ---
 
@@ -211,16 +231,24 @@ def get_risk_mesh(request: RiskMeshRequest):
     from quant.risk_mesh import calculate_exposure_mesh
     try:
         return calculate_exposure_mesh(request.tickers, request.weights,request.benchmark,request.base_currency)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.post("/api/quant/optimize")
 def get_optimization(request: OptimizeRequest):
     from quant.optimizer import optimize_portfolio_mvo
     try:
         return optimize_portfolio_mvo(request.tickers, request.views,request.base_currency)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.post("/api/quant/stress-test")
 def run_stress_test(request: Dict[str, Any]):
@@ -230,8 +258,12 @@ def run_stress_test(request: Dict[str, Any]):
         weights = request.get("weights", [])
         scenario = request.get("scenarioId", "rate_hike")
         return calculate_macro_stress_test(tickers, weights, scenario,request.get('base_currency'))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/api/finny/strategy-report")
 def get_finny_report(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
@@ -239,8 +271,12 @@ def get_finny_report(current_user: User = Depends(get_current_user), session: Se
     try:
         rows = session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
         return get_finny_strategy_report({h.ticker:h.weight for h in rows})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 # --- AI Agents & Committee ---
 
@@ -249,16 +285,24 @@ def run_debate(request: TickerListRequest, current_user: User = Depends(get_curr
     from agents.committee import run_committee_debate
     try:
         return run_committee_debate(request.tickers)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.post("/api/agents/consult")
 async def run_consult(request: ConsultRequest, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     from agents.orchestrator import run_consultation
     try:
         return await run_consultation(request.query, current_user, session)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Provider temporarily unavailable. Try again shortly.")
 
 @app.get("/")
 def read_root():
@@ -266,7 +310,7 @@ def read_root():
 
 @app.get('/api/status')
 def provider_status(current_user: User = Depends(get_current_user)):
-    return {'groqConfigured':bool(os.getenv('GROQ_API_KEY')), 'roicConfigured':bool(os.getenv('ROIC_API_KEY')),
+    return {'groqConfigured':bool(os.getenv('GROQ_API_KEY')), 'geminiConfigured':bool(os.getenv('GEMINI_API_KEY')), 'roicConfigured':bool(os.getenv('ROIC_API_KEY')),
             'marketProvider':'Yahoo Finance', 'revision':os.getenv('RENDER_GIT_COMMIT','local')}
 
 from account_api import install_account_routes

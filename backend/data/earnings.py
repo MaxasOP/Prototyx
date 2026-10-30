@@ -40,52 +40,30 @@ def _get(path, params=None):
 def get_earnings_transcript(ticker, year=2026, quarter=3):
     if not ticker.strip() or quarter not in range(1,5):
         raise ValueError('Provide a ticker and quarter from 1 to 4')
-
-    try:
-        identifier = earnings_identifier(ticker)
-        page = _get('/company-events', {'identifier':identifier, 'content':'transcript', 'limit':100})
-        for _ in range(20):
-            for event in page.get('data', []):
-                if event.get('fiscal_year') != year or event.get('fiscal_quarter') != quarter:
-                    continue
-                raw = next((t for t in event.get('transcripts', []) if t.get('type') == 'raw'), None)
-                if not raw:
-                    continue
-                document = _get('/documents/transcripts/' + quote(raw['id'], safe='') + '/raw')
-                text = document.get('text')
-                if isinstance(text, str) and text.strip():
-                    exchange, symbol = identifier.split(':', 1)
-                    market_symbol = symbol + {'NSE':'.NS', 'BSE':'.BO'}.get(exchange, '')
-                    return {'ticker':market_symbol, 'company_name':identifier,
-                            'quarter':f'Q{quarter} {year}', 'prepared_remarks':text,
-                            'qa_session':'Included in the full raw transcript above; speaker labels are unavailable.',
-                            'source':'ROIC.ai', 'asOf':document.get('updated_at')}
-            next_url = page.get('next_page_url')
-            if not next_url:
-                break
-            if not next_url.startswith('/v3.0.0/company-events?'):
-                break
-            page = _get(next_url[len('/v3.0.0'):])
-    except Exception as e:
-        print(f"Earnings API fallback triggered for {ticker}: {e}")
-
-    # Fallback mock transcript to guarantee zero transcript load failures during presentation
-    clean_ticker = ticker.strip().upper()
-    mock_remarks = (
-        f"Welcome everyone to our Q{quarter} {year} earnings conference call for {clean_ticker}. "
-        f"During this quarter, we observed robust structural demand across our core business segments, "
-        f"delivering steady top-line growth and disciplined capital allocation. "
-        f"Our operating margins expanded by 140 basis points year-over-year driven by operational efficiencies. "
-        f"Looking ahead to the upcoming quarters, we remain committed to expanding our market presence, "
-        f"investing prudently in high-ROI initiatives, and maximizing long-term shareholder value. "
-        f"Thank you for your continued confidence and support. We will now open the line for questions."
-    )
-    return {
-        'ticker': clean_ticker,
-        'company_name': clean_ticker,
-        'quarter': f'Q{quarter} {year}',
-        'prepared_remarks': mock_remarks,
-        'qa_session': 'Q&A session transcript verified from certified corporate reporting archive.',
-        'source': 'Prototyx Verified Intelligence Archive',
-        'asOf': '2026-03-30T00:00:00Z'
-    }
+    identifier = earnings_identifier(ticker)
+    page = _get('/company-events', {'identifier':identifier, 'content':'transcript', 'limit':100})
+    for _ in range(20):
+        for event in page.get('data', []):
+            if event.get('fiscal_year') != year or event.get('fiscal_quarter') != quarter:
+                continue
+            raw = next((t for t in event.get('transcripts', []) if t.get('type') == 'raw'), None)
+            if not raw:
+                continue
+            document = _get('/documents/transcripts/' + quote(raw['id'], safe='') + '/raw')
+            text = document.get('text')
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError('ROIC returned an empty transcript')
+            exchange, symbol = identifier.split(':', 1)
+            market_symbol = symbol + {'NSE':'.NS', 'BSE':'.BO'}.get(exchange, '')
+            return {'ticker':market_symbol, 'company_name':identifier,
+                    'quarter':f'Q{quarter} {year}', 'prepared_remarks':text,
+                    'qa_session':'Included in the full raw transcript above; speaker labels are unavailable.',
+                    'source':'ROIC.ai', 'asOf':document.get('updated_at')}
+        next_url = page.get('next_page_url')
+        if not next_url:
+            break
+        # Follow only provider-relative pagination, never an arbitrary host.
+        if not next_url.startswith('/v3.0.0/company-events?'):
+            raise RuntimeError('Unexpected ROIC pagination response')
+        page = _get(next_url[len('/v3.0.0'):])
+    raise ValueError('No accessible transcript for this fiscal period; check company coverage and plan history')

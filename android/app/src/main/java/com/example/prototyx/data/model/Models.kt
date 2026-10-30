@@ -158,7 +158,7 @@ enum class UserExperienceMode {
 data class PricePoint(
     val timestamp: String,
     val close: Float,
-    val volume: Float = 0f,
+    val volume: Float? = null,
     val sma50: Float? = null,
     val sma200: Float? = null,
     val rsi: Float? = null

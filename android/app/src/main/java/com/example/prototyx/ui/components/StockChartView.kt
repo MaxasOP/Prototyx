@@ -30,7 +30,7 @@ fun StockChartView(
     onPeriodChanged: (String) -> Unit = {},
     showTicker: Boolean = true
 ) {
-    var selectedPointIndex by remember { mutableStateOf<Int?>(null) }
+    var selectedPointIndex by remember(ticker, pricePoints) { mutableStateOf<Int?>(null) }
     var chartVisible by remember(pricePoints) { mutableStateOf(false) }
     LaunchedEffect(pricePoints) { chartVisible = true }
     val revealProgress by androidx.compose.animation.core.animateFloatAsState(

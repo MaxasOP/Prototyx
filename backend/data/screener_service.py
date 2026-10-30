@@ -1,25 +1,37 @@
 from typing import List, Dict, Any, Optional
-import random
 
 def search_screener_items(query: Optional[str] = None, risk_level: Optional[str] = None) -> List[Dict[str, Any]]:
     from data.market_data import get_latest_metrics, resolve_ticker
-    import yfinance as yf
-    items = []
-    for company in search_tickers_catalog(query):
-        metrics = get_latest_metrics(company['ticker'])
-        symbol = yf.Ticker(resolve_ticker(company['ticker']))
-        history = symbol.history(period='3mo', auto_adjust=True)
-        volatility = float(history['Close'].pct_change().std() * (252 ** .5))
-        level = 'SAFE' if volatility < .20 else 'BALANCED' if volatility < .35 else 'GROWTH'
-        if risk_level and risk_level.upper() != level:
-            continue
-        change = float((history['Close'].iloc[-1]/history['Close'].iloc[-2]-1)*100) if len(history)>1 else 0
-        summary = f'Historical annualized volatility {volatility:.1%}. Risk label is a volatility band, not a safety guarantee.'
-        items.append(dict(company, price=metrics['close'], changePercent=change,
-                          peRatio=metrics.get('pe_ratio'), dividendYield=metrics.get('dividend_yield'),
-                          rsi=metrics.get('rsi'), riskLevel=level, currency=metrics.get('currency'),
-                          aiAnalysis=summary, plainEnglishSummary=summary))
+    from data.market_data import price_history
+    from concurrent.futures import ThreadPoolExecutor
+    import math
+
+    def load(company):
+        try:
+            metrics = get_latest_metrics(company['ticker'])
+            history = price_history(resolve_ticker(company['ticker']), period='3mo')
+            volatility = float(history['Close'].pct_change().std() * (252 ** .5))
+            if not math.isfinite(volatility):
+                return None
+            level = 'SAFE' if volatility < .20 else 'BALANCED' if volatility < .35 else 'GROWTH'
+            if risk_level and risk_level.upper() != level:
+                return None
+            change = float((history['Close'].iloc[-1]/history['Close'].iloc[-2]-1)*100) if len(history)>1 else 0
+            summary = f'Historical annualized volatility {volatility:.1%}. Risk label is a volatility band, not a safety guarantee.'
+            return dict(company, price=metrics['close'], changePercent=change,
+                        peRatio=metrics.get('pe_ratio'), dividendYield=metrics.get('dividend_yield'),
+                        rsi=metrics.get('rsi'), riskLevel=level, currency=metrics.get('currency'),
+                        aiAnalysis=summary, plainEnglishSummary=summary)
+        except RuntimeError:
+            return None
+
+    companies = search_tickers_catalog(query)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        items = [item for item in pool.map(load, companies) if item is not None]
+    if companies and not items and not risk_level:
+        raise RuntimeError('Market data unavailable for matching companies. Try again shortly.')
     return items
+
 
 def search_tickers_catalog(query: Optional[str] = None, sector: Optional[str] = None) -> List[Dict[str, Any]]:
     from data.company_search import search_companies

@@ -22,6 +22,8 @@ COMPANIES = {
 
 def fetch_live_news_sentiment(ticker=None):
     clean = ticker.strip().upper() if ticker else None
+    if clean and clean.endswith(('.NS', '.BO')):
+        clean = clean[:-3]
     return _feed(clean, int(time.time()//300))
 
 @lru_cache(maxsize=128)

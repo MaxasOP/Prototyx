@@ -66,11 +66,21 @@ class DashboardViewModel(private val repository: DataRepository) : ViewModel() {
             isLoading = true
             errorMessage = null
             try {
+                tickerData = null
+                chartData = null
+                try {
+                    chartData = repository.getStockChart(ticker)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    errorMessage = "Chart unavailable: ${e.message}"
+                }
                 tickerData = repository.getIndicators(ticker)
-                chartData = repository.getStockChart(ticker)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ProductionLogger.recordException(e)
-                errorMessage = "Failed to extract intelligence for $ticker"
+                errorMessage = listOfNotNull(errorMessage, "Indicators unavailable: ${e.message}").joinToString(". ")
             } finally {
                 isLoading = false
             }

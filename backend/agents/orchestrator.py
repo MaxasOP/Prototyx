@@ -1,52 +1,13 @@
 import os
 import json
 import asyncio
+import math
 from typing import Dict, Any, List
-import yfinance as yf
 from duckduckgo_search import DDGS
-from groq import Groq
-
-import os
-import json
-import asyncio
-from typing import Dict, Any, List
-import yfinance as yf
-from duckduckgo_search import DDGS
-from groq import Groq
-import google.generativeai as genai
-
-# API Keys
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-else:
-    gemini_model = None
+from agents.llm import generate_text
 
 async def call_llm(prompt: str, json_mode: bool = False) -> str:
-    """Helper to call Gemini if available, otherwise Groq."""
-    if gemini_model:
-        try:
-            config = {"response_mime_type": "application/json"} if json_mode else {}
-            response = gemini_model.generate_content(prompt, generation_config=config)
-            return response.text
-        except Exception as e:
-            print(f"Gemini call failed, falling back to Groq: {e}")
-
-    if client:
-        model = os.getenv('GROQ_MODEL', 'qwen/qwen3.8-27b')
-        messages = [{"role": "user", "content": prompt}]
-        kwargs = {"messages": messages, "model": model, "max_tokens": 300}
-        if json_mode:
-            kwargs["response_format"] = {"type": "json_object"}
-        comp = client.chat.completions.create(**kwargs)
-        return comp.choices[0].message.content
-
-    raise RuntimeError("Neither GEMINI_API_KEY nor GROQ_API_KEY is configured")
+    return await asyncio.to_thread(generate_text, prompt, json_mode)
 
 async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
     """
@@ -54,11 +15,12 @@ async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
     """
     print(f"DEBUG: Data Analyst working on {ticker}...")
     try:
-        from data.market_data import resolve_ticker
+        from data.market_data import resolve_ticker, price_history, finite_number
         resolved = resolve_ticker(ticker)
+        import yfinance as yf
         stock = yf.Ticker(resolved)
 
-        history = stock.history(period="1mo")
+        history = price_history(resolved, period="1mo", asset=stock)
         if history.empty:
             history = stock.history(period="3mo")
 
@@ -74,8 +36,8 @@ async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
         except Exception:
             pass
             
-        market_cap = info.get("marketCap") or info.get("regularMarketOpen")
-        pe_ratio = info.get("trailingPE") or info.get("forwardPE")
+        market_cap = finite_number(info.get("marketCap"))
+        pe_ratio = finite_number(info.get("trailingPE")) or finite_number(info.get("forwardPE"))
         
         return {
             "ticker": ticker,
@@ -83,7 +45,8 @@ async def data_analyst_worker(ticker: str) -> Dict[str, Any]:
             "volatility": f"{volatility:.2%}",
             "market_cap": market_cap,
             "pe_ratio": pe_ratio,
-            "status": "success"
+            "status": "success",
+            "asOf": history.index[-1].isoformat()
         }
     except Exception as e:
         return {"ticker": ticker, "status": "error", "message": str(e)}
@@ -125,8 +88,6 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     🧠 Manager Agent: Orchestrates the Data Analyst and News Researcher.
     Uses Groq for high-speed synthesis.
     """
-    if client is None:
-        raise RuntimeError('GROQ_API_KEY is not configured')
     
     # 0. Context Gathering
     user_holdings_str = "No active holdings."
@@ -174,7 +135,14 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
     # Execute Action Context
     action_result = ""
     if action == "add_holding" and ticker != "NONE" and current_user and db_session:
+        from data.market_data import price_history, resolve_ticker
+        await asyncio.to_thread(price_history, resolve_ticker(ticker))
         existing = db_session.exec(select(Holding).where(Holding.user_id == current_user.id, Holding.ticker == ticker)).first()
+        if not math.isfinite(weight) or not 0 < weight <= 1:
+            raise ValueError('Allocation must be between 0 and 100%')
+        holdings = db_session.exec(select(Holding).where(Holding.user_id == current_user.id)).all()
+        if sum(h.weight for h in holdings if h.ticker != ticker) + weight > 1.00001:
+            raise ValueError('Total allocation cannot exceed 100%')
         if existing:
             existing.weight = weight
         else:
@@ -197,7 +165,7 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         if holdings:
             tickers = [h.ticker for h in holdings]
             opt = optimize_portfolio_mvo(tickers)
-            for t, w in opt.get('optimal_weights', {}).items():
+            for t, w in opt['weights'].items():
                 h_row = db_session.exec(select(Holding).where(Holding.user_id == current_user.id, Holding.ticker == t)).first()
                 if h_row: h_row.weight = float(w)
             db_session.commit()
@@ -207,6 +175,10 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
 
     print(f"DEBUG: Manager detected asset: {ticker}, Action: {action}")
 
+    if action_result:
+        return {"asset": ticker if ticker != "NONE" else "PORTFOLIO", "recommendation": action_result,
+                "data_summary": {}, "news_found": False}
+
     # If no ticker detected at all, return conversational response
     if ticker == "NONE":
         if action_result:
@@ -214,8 +186,8 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         return {"asset": "PORTFOLIO", "recommendation": "Finny online. Please name a specific asset or command (e.g. Add Nvidia to my portfolio, or optimize my portfolio).", "data_summary": {}, "news_found": False}
 
     # 2. Parallel Execution (Step 2: Workers)
-    data_task = data_analyst_worker(ticker)
-    news_task = news_researcher_worker(f"{ticker} investment news sentiment")
+    data_task = asyncio.to_thread(lambda: asyncio.run(data_analyst_worker(ticker)))
+    news_task = asyncio.to_thread(lambda: asyncio.run(news_researcher_worker(f"{ticker} investment news sentiment")))
     
     data_results, news_results = await asyncio.gather(data_task, news_task)
     if data_results.get('status') != 'success' or data_results.get('price') is None:
@@ -255,7 +227,7 @@ async def run_consultation(user_query: str, current_user: User = None, db_sessio
         p = data_results.get('price', 'N/A')
         v = data_results.get('volatility', 'N/A')
         action_prefix = f"{action_result}\n\n" if action_result else ""
-        final_report = f"{action_prefix}STRATEGY SUMMARY: Market analysis for {ticker}. Current price is observed at {p} with {v} annualized volatility. RISK RATING: MODERATE. FINAL VERDICT: HOLD."
+        final_report = f"{action_prefix}STRATEGY SUMMARY: Market analysis for {ticker}. Current price is observed at {p} with {v} annualized volatility. AI synthesis is unavailable. These are historical observations; no risk rating or trading verdict was generated."
 
     return {
         "asset": ticker,

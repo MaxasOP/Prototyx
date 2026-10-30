@@ -1,10 +1,11 @@
 """Live account lifecycle smoke test. Uses and deletes its own QA account only."""
+import os
 import requests
 import secrets
 import uuid
 
 def main():
-    base='https://prototyx.onrender.com'
+    base=os.getenv('SMOKE_BASE_URL','https://prototyx.onrender.com')
     client=requests.Session()
     credentials={'email':'qa-account-'+uuid.uuid4().hex+'@example.invalid','password':secrets.token_urlsafe(24)}
     def call(method,path,body=None,expected=200):
